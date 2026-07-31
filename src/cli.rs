@@ -25,12 +25,13 @@ enum Commands {
 			default_value_t = false
 		)]
 		playlist: bool,
+		#[arg(short = 'f')]
+		format: Option<String>,
+		#[arg(short = 'n')]
+		name: Option<String>,
 		url: String,
-		#[arg(
-			default_value_t = "mp3".to_string(),
-		)]
-		format: String,
 	},
+	List,
 	Exit
 }
 
@@ -53,7 +54,27 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				app.player.play_audio(audio)?;
 			}
 		}
-		Commands::Pause | Commands::PlayPause | Commands::Download { playlist: _, url: _, format: _ } => todo!(),
+		Commands::Pause => {
+			app.player.pause();
+		}
+		Commands::PlayPause => {
+			app.player.playpause();
+		} 
+		Commands::Download { playlist, format, url, name} => {
+			if let Err(e) = download_audio(
+				app,
+				playlist, 
+				format, 
+				name,
+				url.clone() 
+			) {
+				println!("Failed to download {} due to {}", 
+					url, 
+					e
+				); 
+			}
+		}
+		Commands::List => { todo!(); }
 		Commands::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -76,37 +97,37 @@ pub fn readline() -> Result<String, String> {
 	Ok(input)
 }
 
-fn download_audio(app: &AppState, name: Option<String>, url: String, playlist: bool) -> Result<(), String> {
-	let mut args = vec!["-x", "--audio-format", &app.config.downloader.format];
+fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: Option<String>, url: String) -> Result<(), String> {
 	
-	let name: &str = &name.unwrap_or(String::new());
 
-	if !name.is_empty() && !playlist {
-		
-		args.push("-o");
-		args.push(name);
-	}
+	let download_path: String = app.config.downloader.download_path.clone() + "/";
+	let default_format: String = app.config.downloader.format.clone();
+	let name: &str = &(download_path+&name.unwrap_or(String::from("%(title)s.%(ext)s")));
+	let format: &str = &format.unwrap_or(default_format);
 	
+	let mut args = vec![
+		"-x", 
+		"--audio-format", 
+		format, 
+		"-o",
+		name
+	];
+
 	if playlist {
 		args.push("--yes-playlist");
+	}
+	else {
+		args.push("--no-playlist");
 	}
 	
 	args.push(&url);
 
-	let mut command = std::process::Command::new("yt-dlp");
-	
-	for arg in args {
-		command.arg(arg);
-	}
+	dbg!(&args);
 
-	let output = command.output().map_err(|e| e.to_string())?;
-
-	if output.status.success() {
-		println!("{}", String::from_utf8_lossy(&output.stdout));
-	}
-	else {
-		println!("{}", String::from_utf8_lossy(&output.stderr));
-	}
+	let output = std::process::Command::new("yt-dlp")
+		.args(args)
+		.status()
+		.map_err(|e| e.to_string())?;
 
 	Ok(())
 }

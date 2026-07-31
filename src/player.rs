@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize};
 
 pub struct Player {
 	stream_handle: MixerDeviceSink,
-	player: rodio::Player
+	player: rodio::Player,
 }
 
 impl Player {
@@ -18,7 +18,7 @@ impl Player {
 		let player = rodio::Player::connect_new(&stream_handle.mixer());
 		Player {
 			stream_handle,
-			player
+			player,
 		}
 	}
 
@@ -40,8 +40,12 @@ impl Player {
 		Ok(())
 	}
 
-	pub fn set_volume(&self, value: f32) {
-		self.player.set_volume(value);
+	pub fn set_volume(&self, volume: f32) {
+		self.player.set_volume(volume);
+	}
+	
+	pub fn set_speed(&self, speed: f32) {
+		self.player.set_speed(speed);
 	}
 	
 	pub fn playpause(&self) {
@@ -79,6 +83,7 @@ impl Player {
 		}	
 		Ok(())
 	}
+
 }
 
 #[derive(Serialize, Deserialize)]
