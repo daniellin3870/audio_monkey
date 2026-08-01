@@ -32,6 +32,10 @@ enum Commands {
 		url: String,
 	},
 	List,
+	Set {
+		option: String,
+		value: String,
+	},
 	Exit
 }
 
@@ -41,6 +45,10 @@ pub struct AppState<'a> {
 }
 
 pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
+	
+	let music_dir = &app.config.player.music_directory;
+	let download_dir = &app.config.downloader.download_path;
+	
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
@@ -74,7 +82,13 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				); 
 			}
 		}
-		Commands::List => { todo!(); }
+		Commands::List => { 
+			let names = get_names_from_dir(music_dir)?;
+			for name in names {
+				println!("{name}");
+			}
+		}
+		Commands::Set { option: _, value: _ } => todo!(),
 		Commands::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -122,8 +136,6 @@ fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: 
 	
 	args.push(&url);
 
-	dbg!(&args);
-
 	let output = std::process::Command::new("yt-dlp")
 		.args(args)
 		.status()
@@ -132,3 +144,18 @@ fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: 
 	Ok(())
 }
 
+fn get_names_from_dir(path: &String) -> Result<Vec<String>, String> {
+	let path = std::path::PathBuf::from(path);
+	
+	let dir_entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
+
+	let mut file_names: Vec<String> = Vec::new();
+	
+	for entry in dir_entries {
+		let entry = entry.map_err(|e| e.to_string())?;
+		let name = entry.file_name().into_string().unwrap_or("INVALID FILE NAME".to_string());
+		file_names.push(name);
+	}
+	
+	Ok(file_names)
+}
