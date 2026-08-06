@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand, Args};
 use std::io::Write;
+use std::path::PathBuf;
 
 use crate::player::{self, Audio, Player};
 use crate::cfg::Config;
@@ -31,7 +32,14 @@ enum Commands {
 		name: Option<String>,
 		url: String,
 	},
-	List,
+	List {
+		#[arg(
+			short = 'v',
+			default_value_t = false
+		)]
+		verbose: bool,
+		playlist: Option<String>
+	},
 	Set {
 		option: String,
 		value: String,
@@ -82,11 +90,9 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				); 
 			}
 		}
-		Commands::List => { 
-			let names = get_names_from_dir(music_dir)?;
-			for name in names {
-				println!("{name}");
-			}
+		Commands::List { verbose, playlist: _ } => { 
+			let songs = get_songs(verbose, None, music_dir)?;
+			println!("{}", songs);
 		}
 		Commands::Set { option: _, value: _ } => todo!(),
 		Commands::Exit => {
@@ -144,18 +150,71 @@ fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: 
 	Ok(())
 }
 
-fn get_names_from_dir(path: &String) -> Result<Vec<String>, String> {
+fn get_paths_from_dir(path: &String) -> Result<Vec<PathBuf>, String> {
 	let path = std::path::PathBuf::from(path);
 	
 	let dir_entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
 
-	let mut file_names: Vec<String> = Vec::new();
+	let mut file_paths: Vec<PathBuf> = Vec::new();
 	
 	for entry in dir_entries {
 		let entry = entry.map_err(|e| e.to_string())?;
-		let name = entry.file_name().into_string().unwrap_or("INVALID FILE NAME".to_string());
-		file_names.push(name);
+		let path = entry.path();
+		file_paths.push(path);
 	}
 	
-	Ok(file_names)
+	Ok(file_paths)
+}
+
+fn format_from_secs(secs: u64) -> String {
+	let s: u64 = secs % 60;
+	let m: u64 = secs / 60; 
+
+	if m / 60 != 0 { 
+		return format!("{0}:{1:02}:{2:02}", m / 60, m, s)
+	}
+	format!("{:02}:{:02}", m, s)
+}
+
+fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, String>{
+
+	let mut result = String::new();
+
+	//if !playlist.is_none() {
+	//	let playlist = Player::search_playlist(playlist.unwrap())?;
+	//	
+	//	let audios = playlist.get_songs();	
+
+	//	result.push(playlist.get_name() + "\n");
+	//	
+	//	for audio in audios {
+	//		result.push(audio.get_name() + "\n");
+	//		if v {
+	//			result.push_str(&(
+	//				format!("  {}\n  {}", 
+	//					format_from_secs(*audio.get_duration()), 
+	//					audio.get_path().to_str().unwrap_or("invalid characters")
+	//			))); 
+	//		}
+	//	} 
+	//	return Ok(result);
+	//}
+
+	let paths = get_paths_from_dir(dir)?;
+	
+	for path in paths {
+		let audio = Audio::new(path)?;
+		result.push_str(&(format!("\n{}", audio.get_name())));
+		if v {
+			result.push_str(&(
+				format!("\n  {}\n  {}", 
+					format_from_secs(*audio.get_duration()), 
+					audio.get_path().to_str().unwrap_or("invalid characters")
+			)));
+		}
+	}
+
+	result.push('\n');
+
+	Ok(result)
 }

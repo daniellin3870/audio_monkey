@@ -108,13 +108,13 @@ impl Audio {
 			path,
 		})
 	}
-	fn get_name(&self) -> &String {
+	pub fn get_name(&self) -> &String {
 		&self.name
 	}
-	fn get_duration(&self) -> &u64 {
+	pub fn get_duration(&self) -> &u64 {
 		&self.duration
 	} 
-	fn get_path(&self) -> &PathBuf {
+	pub fn get_path(&self) -> &PathBuf {
 		&self.path
 	} 
 }
