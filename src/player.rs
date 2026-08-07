@@ -1,8 +1,11 @@
-use rodio::{Decoder, MixerDeviceSink, source::Source};
 use std::io::BufReader;
 use std::fs::File;
 use std::path::PathBuf;
+
+use rodio::{Decoder, MixerDeviceSink, source::Source};
 use serde::{Serialize, Deserialize};
+
+use json::{object, JsonValue};
 
 pub struct Player {
 	stream_handle: MixerDeviceSink,
@@ -15,7 +18,7 @@ impl Player {
 		let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()
 			.expect("open default audio stream");
 		
-		let player = rodio::Player::connect_new(&stream_handle.mixer());
+		let player = rodio::Player::connect_new(stream_handle.mixer());
 		Player {
 			stream_handle,
 			player,
@@ -33,7 +36,7 @@ impl Player {
 		let audio_file = File::open(audio.get_path())
 			.map_err(|e| e.to_string())?;
 		let player = rodio::play(
-			&self.stream_handle.mixer(), 
+			self.stream_handle.mixer(), 
 			BufReader::new(audio_file))
 			.map_err(|e| e.to_string())?; 
 		self.player = player;
@@ -86,6 +89,12 @@ impl Player {
 
 }
 
+impl Default for Player {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Audio {
 	name: String,
@@ -119,11 +128,41 @@ impl Audio {
 	} 
 }
 
+impl From<Audio> for JsonValue {
+	fn from(audio: Audio) -> Self {
+		object!(
+			name: audio.get_name().clone(),
+			duration: *audio.get_duration(),
+			path: audio.get_path()
+				.clone()
+				.to_str()
+				.unwrap_or("invalid path")
+				.to_string()
+		)
+	}
+}
+
+//impl Into<JsonValue> for Audio {
+//	fn into(self) -> JsonValue {
+//		let audio = self;
+//		object!(
+//			name: audio.get_name().clone(),
+//			duration: *audio.get_duration(),
+//			path: audio.get_path()
+//				.clone()
+//				.to_str()
+//				.unwrap_or("invalid path")
+//				.to_string()
+//		)
+//		
+//	}
+//}
+
 impl Clone for Audio {
 	fn clone(&self) -> Audio {
 		Audio {
 			name: self.name.clone(),
-			duration: self.duration.clone(),
+			duration: self.duration,
 			path: self.path.clone(),
 		}
 	}

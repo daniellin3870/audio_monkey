@@ -1,7 +1,11 @@
 use crate::player::Playlist;
+
 use std::path::PathBuf;
-use std::fs::{File, OpenOptions};
-use serde::{Deserialize, Serialize};
+use std::fs::OpenOptions;
+
+use json::object;
+
+
 
 pub fn init() -> Result<(), String> {
 	let mut playlist_dir: PathBuf = std::env::home_dir()
@@ -25,3 +29,25 @@ pub fn init() -> Result<(), String> {
 	Ok(())
 }
 
+//pub fn search_playlist(name: String) -> Result<Playlist, String> {
+//	Ok(())
+//}
+
+pub fn save(dir: String, all: Vec<Playlist>) -> Result<(), String> {
+	let mut buffer: String = String::new();
+
+	for list in all {
+		let entry = object!(
+			name:  list.get_name().clone(),
+			count: *list.get_count(),
+			songs: *list.get_songs().clone()
+		);
+
+		buffer.push_str(&entry.dump());
+	}
+
+	std::fs::write(dir, buffer).map_err(|e| e.to_string())?;
+
+	Ok(())
+	
+}

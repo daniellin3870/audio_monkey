@@ -1,8 +1,9 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{ValueEnum, Parser, Subcommand, builder::PossibleValue};
+
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::player::{self, Audio, Player};
+use crate::player::{Audio, Player};
 use crate::cfg::Config;
 
 #[derive(Debug, Parser)]
@@ -40,11 +41,60 @@ enum Commands {
 		verbose: bool,
 		playlist: Option<String>
 	},
-	Set {
-		option: String,
-		value: String,
+	Config {
+		option: ConfigOptions,
+		key: String,
+		value: String
+	},
+	Playlist {
+		option: PlaylistOptions,
+		value: String
 	},
 	Exit
+}
+
+
+#[derive(Clone, Debug)]
+enum ConfigOptions {
+	List,
+	Set
+}
+
+impl ValueEnum for ConfigOptions {
+	fn value_variants<'a>() -> &'a [Self] {
+		&[Self::List, Self::Set]
+	}
+	
+	fn to_possible_value(&self) -> Option<PossibleValue> {
+		Some(match self {
+			Self::List => PossibleValue::new("list"),
+			Self::Set=> PossibleValue::new("set"),
+		})
+	}
+}
+
+
+#[derive(Clone, Debug)]
+enum PlaylistOptions {
+	Add,
+	Sub,
+	Load,
+	Name
+}
+
+impl ValueEnum for PlaylistOptions {
+	fn value_variants<'a>() -> &'a [Self] {
+		&[Self::Add, Self::Sub, Self::Load, Self::Name]
+	}
+	
+	fn to_possible_value(&self) -> Option<PossibleValue> {
+		Some(match self {
+			Self::Add => PossibleValue::new("add"),
+			Self::Sub => PossibleValue::new("sub"),
+			Self::Load => PossibleValue::new("load"),
+			Self::Name=> PossibleValue::new("name")
+		})
+	}
 }
 
 pub struct AppState<'a> {
@@ -55,19 +105,18 @@ pub struct AppState<'a> {
 pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	
 	let music_dir = &app.config.player.music_directory;
-	let download_dir = &app.config.downloader.download_path;
+	//let download_dir = &app.config.downloader.download_path;
 	
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
 		Commands::Play{ path } => { 
-			if path == None {
-				app.player.play(); 
+			if let Some(p) = path {
+				let audio = Audio::new(std::path::PathBuf::from(p))?;
+				app.player.play_audio(audio)?;
 			}
 			else {
-				let path = path.unwrap();
-				let audio = Audio::new(std::path::PathBuf::from(path))?;
-				app.player.play_audio(audio)?;
+				app.player.play(); 
 			}
 		}
 		Commands::Pause => {
@@ -94,7 +143,8 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 			let songs = get_songs(verbose, None, music_dir)?;
 			println!("{}", songs);
 		}
-		Commands::Set { option: _, value: _ } => todo!(),
+		Commands::Playlist { option: _, value: _ }| 
+		Commands::Config { option: _, key: _, value: _ }=> todo!(),
 		Commands::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -142,7 +192,7 @@ fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: 
 	
 	args.push(&url);
 
-	let output = std::process::Command::new("yt-dlp")
+	std::process::Command::new("yt-dlp")
 		.args(args)
 		.status()
 		.map_err(|e| e.to_string())?;
@@ -177,7 +227,7 @@ fn format_from_secs(secs: u64) -> String {
 }
 
 fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, String>{
-
+	todo!();
 	let mut result = String::new();
 
 	//if !playlist.is_none() {
@@ -217,4 +267,14 @@ fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, 
 	result.push('\n');
 
 	Ok(result)
+}
+
+#[allow(dead_code, unused_variables)]
+fn parse_playlist(app: &mut AppState, option: PlaylistOptions, value: String) -> Result<(), String> {
+	todo!();
+}
+
+#[allow(dead_code, unused_variables)]
+fn parse_config(app: &mut AppState, option: ConfigOptions, key: String, value: String) -> Result<(), String> {
+	todo!();
 }

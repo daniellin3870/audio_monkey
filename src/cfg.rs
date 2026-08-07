@@ -1,5 +1,5 @@
 use std::path::{PathBuf, Path};
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::str::FromStr;
 use std::fmt::Display;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -70,6 +70,7 @@ pub struct ColorConfig {
 }
 
 pub fn save(config: Config, config_path: &Path) -> Result<(), String> {
+	todo!();
 	match std::fs::exists(config_path) {
 		Ok(true) => (),
 		_ => return Err("Config file not found".to_string())
@@ -101,7 +102,7 @@ pub fn init() -> Result<(), String> {
 }
 
 pub fn load() -> Result<Config, String> {
-	let mut config_dir: PathBuf = std::env::home_dir()
+	let config_dir: PathBuf = std::env::home_dir()
 		.ok_or("no home directory")
 		.unwrap()
 		.join(".config/audio_monkey/config.toml");

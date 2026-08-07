@@ -1,12 +1,10 @@
-use std::{path::Path, io::{self, Write}};
-
 pub mod player;
 pub mod cli;
 pub mod cfg;
 pub mod data;
 
-use player::{Player, Audio};
-use cli::Cli;
+use player::Player;
+
 
 fn main() -> Result<(), String> {
 	
