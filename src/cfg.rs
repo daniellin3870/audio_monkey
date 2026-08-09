@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Color(u8, u8, u8); // {r, g, b}
+pub struct Color(pub u8, pub u8, pub u8); // {r, g, b}
 
 impl FromStr for Color {
 	
@@ -50,11 +50,22 @@ pub struct Config {
 	pub color: ColorConfig
 }
 
+//impl std::fmt::Display for Config {
+//
+//	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//		let player = self.player;
+//		let downloader = self.downloader;
+//		let color = self.color;
+//
+//		let buffer = format!()
+//	}
+//}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {
 	pub music_directory: String,
-	pub volume: f32,
-	pub playback_speed: f32
+	pub volume: f64,
+	pub playback_speed: f64
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,17 +77,20 @@ pub struct DownloaderConfig {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ColorConfig {
-	background: Color 
+	pub background: Color 
 }
 
-pub fn save(config: Config, config_path: &Path) -> Result<(), String> {
-	todo!();
-	match std::fs::exists(config_path) {
-		Ok(true) => (),
-		_ => return Err("Config file not found".to_string())
-	}
+pub fn save(config: &Config) -> Result<(), String> {
+	let mut config_dir: PathBuf = std::env::home_dir()
+		.ok_or("no home directory")
+		.unwrap()
+		.join(".config/audio_monkey/config.toml");
 
-	Ok(())
+
+	let config = toml::to_string(config).map_err(|e| e.to_string())?;
+
+	std::fs::write(config_dir.as_path(), &config).map_err(|e| e.to_string())
+
 }
 
 pub fn init() -> Result<(), String> {

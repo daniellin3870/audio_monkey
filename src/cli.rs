@@ -1,4 +1,4 @@
-use clap::{ValueEnum, Parser, Subcommand, builder::PossibleValue};
+use clap::{ValueEnum, Parser, Subcommand}; 
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -42,65 +42,89 @@ enum Commands {
 		playlist: Option<String>
 	},
 	Config {
-		option: ConfigOptions,
-		key: String,
-		value: String
+		#[command(subcommand)]
+		option: ConfigOption,
 	},
 	Playlist {
+		#[command(subcommand)]
 		option: PlaylistOptions,
-		value: String
 	},
 	Exit
 }
 
 
-#[derive(Clone, Debug)]
-enum ConfigOptions {
-	List,
-	Set
-}
-
-impl ValueEnum for ConfigOptions {
-	fn value_variants<'a>() -> &'a [Self] {
-		&[Self::List, Self::Set]
-	}
-	
-	fn to_possible_value(&self) -> Option<PossibleValue> {
-		Some(match self {
-			Self::List => PossibleValue::new("list"),
-			Self::Set=> PossibleValue::new("set"),
-		})
+#[derive(Subcommand, Clone, Debug)]
+enum ConfigOption {
+	Get,
+	Save,
+	Set {
+		#[arg(value_enum)]
+		key: ConfigKey,
+		value: String
 	}
 }
 
+#[derive(ValueEnum, Clone, Debug )]
+enum ConfigKey {
+	MusicDirectory,
+	Volume,
+	PlaybackSpeed,
+	DownloadPath,
+	Options,
+	Format,
+	Background
+}
+//impl ValueEnum for ConfigOption {
+//	fn value_variants<'a>() -> &'a [Self] {
+//		&[Self::List, Self::Save, Self::Set]
+//	}
+//	
+//	fn to_possible_value(&self) -> Option<PossibleValue> {
+//		Some(match self {
+//			Self::List => PossibleValue::new("list"),
+//			Self::Save => PossibleValue::new("save"),
+//			Self::Set=> PossibleValue::new("set"),
+//		})
+//	}
+//}
 
-#[derive(Clone, Debug)]
+
+#[derive(Subcommand, Clone, Debug)]
 enum PlaylistOptions {
-	Add,
-	Sub,
-	Load,
-	Name
+	Add {
+		song: String
+	},
+	Sub {
+		song: String
+	},
+	Load {
+		playlist: String	
+	},
+	Name {
+		name: String
+	}
 }
 
-impl ValueEnum for PlaylistOptions {
-	fn value_variants<'a>() -> &'a [Self] {
-		&[Self::Add, Self::Sub, Self::Load, Self::Name]
-	}
-	
-	fn to_possible_value(&self) -> Option<PossibleValue> {
-		Some(match self {
-			Self::Add => PossibleValue::new("add"),
-			Self::Sub => PossibleValue::new("sub"),
-			Self::Load => PossibleValue::new("load"),
-			Self::Name=> PossibleValue::new("name")
-		})
-	}
-}
+//impl ValueEnum for PlaylistOptions {
+//	fn value_variants<'a>() -> &'a [Self] {
+//		&[Self::Add, Self::Sub, Self::Load, Self::Name]
+//	}
+//	
+//	fn to_possible_value(&self) -> Option<PossibleValue> {
+//		Some(match self {
+//			Self::Add => PossibleValue::new("add"),
+//			Self::Sub => PossibleValue::new("sub"),
+//			Self::Load => PossibleValue::new("load"),
+//			Self::Name=> PossibleValue::new("name")
+//		})
+//	}
+//}
 
 pub struct AppState<'a> {
 	pub player: &'a mut Player,
 	pub config: &'a mut Config,
 }
+
 
 pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	
@@ -143,8 +167,8 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 			let songs = get_songs(verbose, None, music_dir)?;
 			println!("{}", songs);
 		}
-		Commands::Playlist { option: _, value: _ }| 
-		Commands::Config { option: _, key: _, value: _ }=> todo!(),
+		Commands::Playlist { option: _ } => todo!(),
+		Commands::Config { option } => parse_config_command(app, option)?,
 		Commands::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -227,6 +251,7 @@ fn format_from_secs(secs: u64) -> String {
 }
 
 fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, String>{
+	//TODO: list songs in playlist
 	todo!();
 	let mut result = String::new();
 
@@ -270,11 +295,44 @@ fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, 
 }
 
 #[allow(dead_code, unused_variables)]
-fn parse_playlist(app: &mut AppState, option: PlaylistOptions, value: String) -> Result<(), String> {
+fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, value: String) -> Result<(), String> {
 	todo!();
 }
 
-#[allow(dead_code, unused_variables)]
-fn parse_config(app: &mut AppState, option: ConfigOptions, key: String, value: String) -> Result<(), String> {
-	todo!();
+fn parse_config_command(app: &mut AppState, option: ConfigOption) -> Result<(), String> {
+	use ConfigOption::*;
+	match option {
+		Get => {
+			//TODO: make it print prettier
+			println!("{:#?}", app.config);
+			Ok(())
+		}
+		Save => {
+			crate::cfg::save(app.config) 
+		}
+		Set { key, value } => {
+			config_set(app, key, value)
+		}
+	}
+}
+
+fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <(), String> {
+	use ConfigKey::*;
+	use crate::cfg::Color;
+	use std::str::FromStr;
+
+	let player = &mut app.config.player; 
+	let downloader = &mut app.config.downloader; 
+	let color = &mut app.config.color; 
+
+	match key {
+		MusicDirectory => player.music_directory = value,
+		Volume         => player.volume = value.parse::<f64>().map_err(|e| e.to_string())?,
+		PlaybackSpeed  => player.playback_speed = value.parse::<f64>().map_err(|e| e.to_string())?,
+		DownloadPath   => downloader.download_path = value,
+		Options        => downloader.options = value,
+		Format         => downloader.format = value,
+		Background     => color.background = Color::from_str(&value)?
+	}	
+	Ok(())
 }
