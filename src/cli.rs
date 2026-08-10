@@ -130,6 +130,9 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	
 	let music_dir = &app.config.player.music_directory;
 	//let download_dir = &app.config.downloader.download_path;
+	let config_path: PathBuf = std::env::home_dir()
+		.ok_or_else(||"no home directory")?
+		.join(".config/audio_monkey/config.toml");
 	
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
@@ -168,7 +171,7 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 			println!("{}", songs);
 		}
 		Commands::Playlist { option: _ } => todo!(),
-		Commands::Config { option } => parse_config_command(app, option)?,
+		Commands::Config { option } => parse_config_command(app, option, config_path)?,
 		Commands::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -299,7 +302,7 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, value: St
 	todo!();
 }
 
-fn parse_config_command(app: &mut AppState, option: ConfigOption) -> Result<(), String> {
+fn parse_config_command(app: &mut AppState, option: ConfigOption, dir: PathBuf) -> Result<(), String> {
 	use ConfigOption::*;
 	match option {
 		Get => {
@@ -308,7 +311,7 @@ fn parse_config_command(app: &mut AppState, option: ConfigOption) -> Result<(), 
 			Ok(())
 		}
 		Save => {
-			crate::cfg::save(app.config) 
+			crate::cfg::save(dir, app.config) 
 		}
 		Set { key, value } => {
 			config_set(app, key, value)

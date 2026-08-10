@@ -202,3 +202,13 @@ impl Playlist {
 		&self.songs
 	}
 }
+
+impl From<Playlist> for JsonValue {
+	fn from(pl: Playlist) -> Self {
+		object!(
+			name:  pl.get_name().clone(),
+			count: *pl.get_count(),
+			songs: *pl.get_songs().clone()
+		)
+	}
+}

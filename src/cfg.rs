@@ -80,19 +80,6 @@ pub struct ColorConfig {
 	pub background: Color 
 }
 
-pub fn save(config: &Config) -> Result<(), String> {
-	let mut config_dir: PathBuf = std::env::home_dir()
-		.ok_or("no home directory")
-		.unwrap()
-		.join(".config/audio_monkey/config.toml");
-
-
-	let config = toml::to_string(config).map_err(|e| e.to_string())?;
-
-	std::fs::write(config_dir.as_path(), &config).map_err(|e| e.to_string())
-
-}
-
 pub fn init() -> Result<(), String> {
 	let mut config_dir: PathBuf = std::env::home_dir()
 		.ok_or("no home directory")
@@ -115,11 +102,16 @@ pub fn init() -> Result<(), String> {
 	Ok(())
 }
 
-pub fn load() -> Result<Config, String> {
-	let config_dir: PathBuf = std::env::home_dir()
-		.ok_or("no home directory")
-		.unwrap()
-		.join(".config/audio_monkey/config.toml");
+pub fn save(config_dir: PathBuf, config: &Config) -> Result<(), String> {
+
+	let config = toml::to_string(config).map_err(|e| e.to_string())?;
+
+	std::fs::write(config_dir.as_path(), &config).map_err(|e| e.to_string())
+
+}
+
+pub fn load(config_dir: PathBuf) -> Result<Config, String> {
+
 	let config_contents = fs::read_to_string(config_dir).map_err(|e| e.to_string())?; 
 	toml::from_str::<Config>(&config_contents).map_err(|e| e.to_string())
 }

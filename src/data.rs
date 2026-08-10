@@ -1,11 +1,8 @@
 use crate::player::Playlist;
 
 use std::path::PathBuf;
-use std::fs::OpenOptions;
-
-use json::object;
-
-
+use std::fs::{self, OpenOptions};
+use std::collections::HashMap;
 
 pub fn init() -> Result<(), String> {
 	let mut playlist_dir: PathBuf = std::env::home_dir()
@@ -33,16 +30,13 @@ pub fn init() -> Result<(), String> {
 //	Ok(())
 //}
 
-pub fn save(dir: String, all: Vec<Playlist>) -> Result<(), String> {
+pub fn save(dir: PathBuf, all: Vec<Playlist>) -> Result<(), String> {
+	use json::JsonValue;
+
 	let mut buffer: String = String::new();
 
 	for list in all {
-		let entry = object!(
-			name:  list.get_name().clone(),
-			count: *list.get_count(),
-			songs: *list.get_songs().clone()
-		);
-
+		let entry: JsonValue = list.into();
 		buffer.push_str(&entry.dump());
 	}
 
@@ -50,4 +44,21 @@ pub fn save(dir: String, all: Vec<Playlist>) -> Result<(), String> {
 
 	Ok(())
 	
+}
+
+pub fn load(dir: PathBuf) -> Result<Vec<Playlist>, String> {
+	todo!();
+	//TODO: make this work, experiment with the parsing and ish
+
+	let mut playlists: Vec<Playlist> = Vec::new();
+	
+	let buffer = fs::read_to_string(dir)
+		.map_err(|e| e.to_string())?;
+
+	let buffer = json::parse(&buffer)
+		.map_err(|e| e.to_string())?;
+
+	dbg!(buffer.dump());
+
+	Ok(playlists)
 }
