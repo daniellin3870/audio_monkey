@@ -1,7 +1,7 @@
 use clap::{ValueEnum, Parser, Subcommand}; 
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::player::{Audio, Player, Playlist};
 use crate::cfg::Config;
@@ -64,7 +64,7 @@ enum ConfigOption {
 	}
 }
 
-#[derive(ValueEnum, Clone, Debug )]
+#[derive(ValueEnum, Clone, Debug)]
 enum ConfigKey {
 	MusicDirectory,
 	Volume,
@@ -76,7 +76,7 @@ enum ConfigKey {
 }
 
 
-#[derive(Subcommand, Clone, Debug)]
+#[derive(Subcommand, Clone, Debug, PartialEq)]
 enum PlaylistOptions {
 	Add {
 		song: String
@@ -100,11 +100,11 @@ enum PlaylistOptions {
 pub struct AppState<'a> {
 	pub player: &'a mut Player,
 	pub config: &'a mut Config,
-	pub loaded: Option<&'a mut Playlist>
+	pub loaded: Option<Playlist>
 }
 
 impl<'a> AppState<'a> {
-	fn load(&mut self, playlist: &'a mut Playlist) {
+	fn load(&mut self, playlist: Playlist) {
 		self.loaded = Some(playlist);
 	}
 }
@@ -286,19 +286,48 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, value: St
 	//TODO: allow multiple songs for add and sub
 	//TODO: optimize with hashmaps and ish
 	//TODO: finish the rest of the options
+	if app.loaded.is_none() && matches!(&option, PlaylistOptions::Create { name: _ } | PlaylistOptions::Load { name: _ }) {
+		return Err(String::from("no playlist loaded"));
+	}
+
+	let loaded = app.loaded.as_mut().unwrap();
 	match option {
-		Add { song: _ } => todo!(), //{
-			//if let Some(playlist) = app.loaded {
-			//	playlist.push
-			//}
-		Sub { song: _ } => todo!(),
+		Add { song } => {
+			loaded.songs.push(search_audio(&Path::new(&song))?);
+		}	
+		Sub { song } => {
+			for i in 0..*loaded.get_count() as usize {
+				if *loaded.songs[i].get_name() == song {
+					loaded.songs.remove(i);
+					return Ok(())
+				}
+			}
+		}
 		Load { name: _ } => {
 			todo!();
 		}
-		Rename { name: _ } =>todo!(),
-		Create { name: _ } =>todo!(),
+		Rename { name } => loaded.set_name(name),
+		Create { name } => {
+			let mut playlist: Playlist = Playlist::default();
+			playlist.set_name(name);
+			app.load(playlist);
+		}
 		Save =>todo!(),
 	}
+	Ok(())
+}
+
+fn search_audio(path: &Path) -> Result<Audio, String> {
+	
+	if !path.exists() {
+		return Err(String::from("path does not exist"));
+	}
+	if !path.is_file() {
+		return Err(String::from("path is not a file"));
+	}
+	
+	Audio::new(path.to_owned())
+
 }
 
 fn parse_config_command(app: &mut AppState, option: ConfigOption, dir: PathBuf) -> Result<(), String> {
