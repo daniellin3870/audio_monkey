@@ -142,22 +142,6 @@ impl From<Audio> for JsonValue {
 	}
 }
 
-//impl Into<JsonValue> for Audio {
-//	fn into(self) -> JsonValue {
-//		let audio = self;
-//		object!(
-//			name: audio.get_name().clone(),
-//			duration: *audio.get_duration(),
-//			path: audio.get_path()
-//				.clone()
-//				.to_str()
-//				.unwrap_or("invalid path")
-//				.to_string()
-//		)
-//		
-//	}
-//}
-
 impl Clone for Audio {
 	fn clone(&self) -> Audio {
 		Audio {
