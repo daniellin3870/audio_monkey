@@ -25,7 +25,7 @@ impl Player {
 		}
 	}
 
-	pub fn queue_audio(&self, audio: Audio) -> Result<(), String> {
+	pub fn queue_audio(&self, audio: &Audio) -> Result<(), String> {
 		let audio_file = File::open(audio.get_path()).map_err(|e| e.to_string())?;
 		let audio = Decoder::try_from(audio_file).map_err(|e| e.to_string())?;
 		self.player.append(audio);
@@ -77,9 +77,9 @@ impl Player {
 	}
 	
 	pub fn playlist(&mut self, playlist: Playlist) -> Result<(), String> {
-		for audio in playlist.get_songs() {
-			if let Err(e) = self.queue_audio(audio.clone()) {
-				println!("unable to play {0}, skipping.", audio.get_name());
+		for song in playlist.songs {
+			if let Err(e) = self.queue_audio(&song) {
+				println!("unable to play {0}, skipping.", song.get_name());
 				print!("{:#?}", e);
 				continue;
 			}
@@ -172,7 +172,7 @@ impl Clone for Audio {
 pub struct Playlist {
 	name: String,
 	count: u64,
-	songs: Vec<Audio>,
+	pub songs: Vec<Audio>,
 }
 
 impl Playlist {
@@ -203,6 +203,16 @@ impl Playlist {
 	}
 }
 
+impl Default for Playlist {
+	fn default() -> Playlist {
+		Playlist {
+			name: String::new(),
+			count: 0,
+			songs: Vec::new()
+		}
+	}
+}
+
 impl From<Playlist> for JsonValue {
 	fn from(pl: Playlist) -> Self {
 		object!(
@@ -212,3 +222,4 @@ impl From<Playlist> for JsonValue {
 		)
 	}
 }
+

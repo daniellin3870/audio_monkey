@@ -18,12 +18,12 @@ fn main() -> Result<(), String> {
 	let mut config = cfg::load(config_path)?;
 	
 	let mut player: Player = Player::new();
-	
+
 	let mut app = cli::AppState {
 		player: &mut player,
-		config: &mut config
-	};
-
+		config: &mut config,
+		loaded: None
+	};	
 	loop {
 		let line = cli::readline()?;
 		let line = line.trim();

@@ -3,7 +3,7 @@ use clap::{ValueEnum, Parser, Subcommand};
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::player::{Audio, Player};
+use crate::player::{Audio, Player, Playlist};
 use crate::cfg::Config;
 
 #[derive(Debug, Parser)]
@@ -74,19 +74,6 @@ enum ConfigKey {
 	Format,
 	Background
 }
-//impl ValueEnum for ConfigOption {
-//	fn value_variants<'a>() -> &'a [Self] {
-//		&[Self::List, Self::Save, Self::Set]
-//	}
-//	
-//	fn to_possible_value(&self) -> Option<PossibleValue> {
-//		Some(match self {
-//			Self::List => PossibleValue::new("list"),
-//			Self::Save => PossibleValue::new("save"),
-//			Self::Set=> PossibleValue::new("set"),
-//		})
-//	}
-//}
 
 
 #[derive(Subcommand, Clone, Debug)]
@@ -98,33 +85,29 @@ enum PlaylistOptions {
 		song: String
 	},
 	Load {
-		playlist: String	
+		name: String	
 	},
-	Name {
+	Rename {
 		name: String
-	}
-}
+	},
+	Create {
+		name: String
+	},
+	Save,
 
-//impl ValueEnum for PlaylistOptions {
-//	fn value_variants<'a>() -> &'a [Self] {
-//		&[Self::Add, Self::Sub, Self::Load, Self::Name]
-//	}
-//	
-//	fn to_possible_value(&self) -> Option<PossibleValue> {
-//		Some(match self {
-//			Self::Add => PossibleValue::new("add"),
-//			Self::Sub => PossibleValue::new("sub"),
-//			Self::Load => PossibleValue::new("load"),
-//			Self::Name=> PossibleValue::new("name")
-//		})
-//	}
-//}
+}
 
 pub struct AppState<'a> {
 	pub player: &'a mut Player,
 	pub config: &'a mut Config,
+	pub loaded: Option<&'a mut Playlist>
 }
 
+impl<'a> AppState<'a> {
+	fn load(&mut self, playlist: &'a mut Playlist) {
+		self.loaded = Some(playlist);
+	}
+}
 
 pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	
@@ -299,7 +282,23 @@ fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, 
 
 #[allow(dead_code, unused_variables)]
 fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, value: String) -> Result<(), String> {
-	todo!();
+	use PlaylistOptions::*;
+	//TODO: allow multiple songs for add and sub
+	//TODO: optimize with hashmaps and ish
+	//TODO: finish the rest of the options
+	match option {
+		Add { song: _ } => todo!(), //{
+			//if let Some(playlist) = app.loaded {
+			//	playlist.push
+			//}
+		Sub { song: _ } => todo!(),
+		Load { name: _ } => {
+			todo!();
+		}
+		Rename { name: _ } =>todo!(),
+		Create { name: _ } =>todo!(),
+		Save =>todo!(),
+	}
 }
 
 fn parse_config_command(app: &mut AppState, option: ConfigOption, dir: PathBuf) -> Result<(), String> {
