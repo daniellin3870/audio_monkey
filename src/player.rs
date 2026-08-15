@@ -1,6 +1,6 @@
 use std::io::BufReader;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rodio::{Decoder, MixerDeviceSink, source::Source};
 use serde::{Serialize, Deserialize};
@@ -26,14 +26,14 @@ impl Player {
 	}
 
 	pub fn queue_audio(&self, audio: &Audio) -> Result<(), String> {
-		let audio_file = File::open(audio.get_path()).map_err(|e| e.to_string())?;
+		let audio_file = File::open(audio.path()).map_err(|e| e.to_string())?;
 		let audio = Decoder::try_from(audio_file).map_err(|e| e.to_string())?;
 		self.player.append(audio);
 		Ok(())
 	}
 
 	pub fn play_audio(&mut self, audio: Audio) -> Result<(), String> {
-		let audio_file = File::open(audio.get_path())
+		let audio_file = File::open(audio.path())
 			.map_err(|e| e.to_string())?;
 		let player = rodio::play(
 			self.stream_handle.mixer(), 
@@ -79,7 +79,7 @@ impl Player {
 	pub fn playlist(&mut self, playlist: Playlist) -> Result<(), String> {
 		for song in playlist.songs {
 			if let Err(e) = self.queue_audio(&song) {
-				println!("unable to play {0}, skipping.", song.get_name());
+				println!("unable to play {0}, skipping.", song.name());
 				print!("{:#?}", e);
 				continue;
 			}
@@ -103,7 +103,8 @@ pub struct Audio {
 }
 
 impl Audio {
-	pub fn new(path: PathBuf) -> Result<Self, String> {
+	pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, String> {
+		let path = path.as_ref();
 		if !path.exists() {
 			return Err("No file found at path".to_string());
 		}
@@ -114,16 +115,16 @@ impl Audio {
 		Ok(Audio {
 			name,
 			duration,
-			path,
+			path: path.to_owned(),
 		})
 	}
-	pub fn get_name(&self) -> &String {
+	pub fn name(&self) -> &str {
 		&self.name
 	}
-	pub fn get_duration(&self) -> &u64 {
+	pub fn duration(&self) -> &u64 {
 		&self.duration
 	} 
-	pub fn get_path(&self) -> &PathBuf {
+	pub fn path(&self) -> &Path {
 		&self.path
 	} 
 }
@@ -131,9 +132,9 @@ impl Audio {
 impl From<Audio> for JsonValue {
 	fn from(audio: Audio) -> Self {
 		object!(
-			name: audio.get_name().clone(),
-			duration: *audio.get_duration(),
-			path: audio.get_path()
+			name: audio.name().clone(),
+			duration: *audio.duration(),
+			path: audio.path()
 				.clone()
 				.to_str()
 				.unwrap_or("invalid path")
@@ -176,13 +177,13 @@ impl Playlist {
 		}
 		self.count = self.songs.len() as u64;
 	}
-	pub fn get_name(&self) -> &String {
+	pub fn name(&self) -> &String {
 		&self.name
 	}
-	pub fn get_count(&self) -> &u64 {
-		&self.count
+	pub fn count(&self) -> u64 {
+		self.count
 	}
-	pub fn get_songs(&self) -> &Vec<Audio> {
+	pub fn songs(&self) -> &Vec<Audio> {
 		&self.songs
 	}
 }
@@ -196,13 +197,23 @@ impl Default for Playlist {
 		}
 	}
 }
-
+//TODO: use AsRef to combine these
 impl From<Playlist> for JsonValue {
 	fn from(pl: Playlist) -> Self {
 		object!(
-			name:  pl.get_name().clone(),
-			count: *pl.get_count(),
-			songs: *pl.get_songs().clone()
+			name:  &pl.name()[..],
+			count: pl.count(),
+			songs: *pl.songs().clone()
+		)
+	}
+}
+
+impl From<&Playlist> for JsonValue {
+	fn from(pl: &Playlist) -> Self {
+		object!(
+			name:  &pl.name()[..],
+			count: pl.count(),
+			songs: *pl.songs().clone()
 		)
 	}
 }

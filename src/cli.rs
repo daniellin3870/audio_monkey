@@ -33,14 +33,6 @@ enum Commands {
 		name: Option<String>,
 		url: String,
 	},
-	List {
-		#[arg(
-			short = 'v',
-			default_value_t = false
-		)]
-		verbose: bool,
-		playlist: Option<String>
-	},
 	Config {
 		#[command(subcommand)]
 		option: ConfigOption,
@@ -116,13 +108,17 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	let config_path: PathBuf = std::env::home_dir()
 		.ok_or_else(||"no home directory")?
 		.join(".config/audio_monkey/config.toml");
+
+	let playlist_path: PathBuf = std::env::home_dir()
+		.ok_or_else(||"no home directory")?
+		.join(".local/share/audio_monkey/playlist.json");
 	
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
 		Commands::Play{ path } => { 
 			if let Some(p) = path {
-				let audio = Audio::new(std::path::PathBuf::from(p))?;
+				let audio = Audio::new(&p)?;
 				app.player.play_audio(audio)?;
 			}
 			else {
@@ -148,10 +144,6 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 					e
 				); 
 			}
-		}
-		Commands::List { verbose, playlist: _ } => { 
-			let songs = get_songs(verbose, None, music_dir)?;
-			println!("{}", songs);
 		}
 		Commands::Playlist { option: _ } => todo!(),
 		Commands::Config { option } => parse_config_command(app, option, config_path)?,
@@ -236,89 +228,66 @@ fn format_from_secs(secs: u64) -> String {
 	format!("{:02}:{:02}", m, s)
 }
 
-fn get_songs(v: bool, playlist: Option<String>, dir: &String) -> Result<String, String>{
-	//TODO: list songs in playlist
-	todo!();
-	let mut result = String::new();
-
-	//if !playlist.is_none() {
-	//	let playlist = Player::search_playlist(playlist.unwrap())?;
-	//	
-	//	let audios = playlist.get_songs();	
-
-	//	result.push(playlist.get_name() + "\n");
-	//	
-	//	for audio in audios {
-	//		result.push(audio.get_name() + "\n");
-	//		if v {
-	//			result.push_str(&(
-	//				format!("  {}\n  {}", 
-	//					format_from_secs(*audio.get_duration()), 
-	//					audio.get_path().to_str().unwrap_or("invalid characters")
-	//			))); 
-	//		}
-	//	} 
-	//	return Ok(result);
-	//}
-
-	let paths = get_paths_from_dir(dir)?;
-	
-	for path in paths {
-		let audio = Audio::new(path)?;
-		result.push_str(&(format!("\n{}", audio.get_name())));
-		if v {
-			result.push_str(&(
-				format!("\n  {}\n  {}", 
-					format_from_secs(*audio.get_duration()), 
-					audio.get_path().to_str().unwrap_or("invalid characters")
-			)));
-		}
-	}
-
-	result.push('\n');
-
-	Ok(result)
-}
-
 #[allow(dead_code, unused_variables)]
-fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, value: String) -> Result<(), String> {
+fn parse_playlist_command(app: &mut AppState, option: Option<PlaylistOptions>, playlist_path: PathBuf) -> Result<(), String> {
 	use PlaylistOptions::*;
 	//TODO: allow multiple songs for add and sub
 	//TODO: optimize with hashmaps and ish
 	//TODO: finish the rest of the options
-	if app.loaded.is_none() && matches!(&option, PlaylistOptions::Create { name: _ } | PlaylistOptions::Load { name: _ }) {
-		return Err(String::from("no playlist loaded"));
-	}
 
 	let loaded = app.loaded.as_mut().unwrap();
-	match option {
-		Add { song } => {
-			loaded.songs.push(search_audio(&Path::new(&song))?);
-		}	
-		Sub { song } => {
-			for i in 0..*loaded.get_count() as usize {
-				if *loaded.songs[i].get_name() == song {
-					loaded.songs.remove(i);
-					return Ok(())
+
+	if let Some(option) = option {
+		if app.loaded.is_none() && 
+			matches!(&option, PlaylistOptions::Create { name: _ } | PlaylistOptions::Load { name: _ }) {
+			return Err(String::from("no playlist loaded"));
+		}
+		match option {
+			Add { song } => {
+				loaded.songs.push(search_audio(&song)?);
+			}	
+			Sub { song } => {
+				for i in 0..loaded.count() as usize {
+					if *loaded.songs[i].name() == song {
+						loaded.songs.remove(i);
+						return Ok(())
+					}
 				}
 			}
+			Load { name } => {
+				for list in app.all {
+					if list.name() == name {
+						app.load(list);
+					}
+				};
+			}
+			Rename { name } => loaded.set_name(name),
+			Create { name } => {
+				let mut playlist: Playlist = Playlist::default();
+				playlist.set_name(name);
+				app.load(playlist);
+			}
+			Save => {
+				crate::data::save(&playlist_path, app.all)?;
+			},
 		}
-		Load { name: _ } => {
-			todo!();
+	}
+	else {
+		if app.loaded.is_none() {
+			return Err(String::from("no playlist loaded"));
 		}
-		Rename { name } => loaded.set_name(name),
-		Create { name } => {
-			let mut playlist: Playlist = Playlist::default();
-			playlist.set_name(name);
-			app.load(playlist);
+		let mut buffer = *loaded.name() + "\n\n"; 
+	
+		for song in loaded.songs() {
+			let song_name = song.name();
+			buffer = buffer + &format!("{song_name}\n");
 		}
-		Save =>todo!(),
 	}
 	Ok(())
 }
 
-fn search_audio(path: &Path) -> Result<Audio, String> {
-	
+fn search_audio<P: AsRef<Path>>(path: P) -> Result<Audio, String> {
+	let path = path.as_ref();	
 	if !path.exists() {
 		return Err(String::from("path does not exist"));
 	}
@@ -326,7 +295,7 @@ fn search_audio(path: &Path) -> Result<Audio, String> {
 		return Err(String::from("path is not a file"));
 	}
 	
-	Audio::new(path.to_owned())
+	Audio::new(path)
 
 }
 

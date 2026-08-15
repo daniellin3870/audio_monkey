@@ -1,23 +1,23 @@
 use crate::player::Playlist;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fs::{self, OpenOptions};
 use std::collections::HashMap;
 
 pub fn init() -> Result<(), String> {
-	let mut playlist_dir: PathBuf = std::env::home_dir()
+	let mut playlist_path: PathBuf = std::env::home_dir()
 		.ok_or("no home directory")
 		.unwrap()
 		.join(".local/share/audio_monkey");
 
-	let _ = std::fs::create_dir_all(playlist_dir.clone());
+	let _ = std::fs::create_dir_all(playlist_path.clone());
 
-	playlist_dir.push("playlist.json");	
+	playlist_path.push("playlist.json");	
 
 	if let Err(e) = OpenOptions::new()
 		.write(true)
 		.create_new(true)
-		.open(playlist_dir) 
+		.open(playlist_path) 
 	{
 		if e.kind() == std::io::ErrorKind::AlreadyExists { return Ok(()); }
 		else { return Err("Error: {e}".to_string()); }
@@ -30,7 +30,7 @@ pub fn init() -> Result<(), String> {
 //	Ok(())
 //}
 
-pub fn save(dir: PathBuf, all: Vec<Playlist>) -> Result<(), String> {
+pub fn save(playlist_path: &Path, all: &Vec<Playlist>) -> Result<(), String> {
 	use json::JsonValue;
 
 	let mut buffer: String = String::new();
@@ -40,7 +40,7 @@ pub fn save(dir: PathBuf, all: Vec<Playlist>) -> Result<(), String> {
 		buffer.push_str(&entry.dump());
 	}
 
-	std::fs::write(dir, buffer).map_err(|e| e.to_string())?;
+	std::fs::write(playlist_path, buffer).map_err(|e| e.to_string())?;
 
 	Ok(())
 	
