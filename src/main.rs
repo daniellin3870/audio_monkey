@@ -7,22 +7,29 @@ use player::Player;
 
 
 fn main() -> Result<(), String> {
-	
 		
 	let config_path = std::env::home_dir()
 		.ok_or("no home directory")
 		.unwrap()
 		.join(".config/audio_monkey/config.toml");
+
+	let playlist_path = std::env::home_dir()
+		.ok_or("no home directory")
+		.unwrap()
+		.join(".config/audio_monkey/config.toml");
+
 	data::init()?;
 	cfg::init()?;
 	let mut config = cfg::load(config_path)?;
 	
 	let mut player: Player = Player::new();
 
+	let mut all = data::load(playlist_path)?;
+
 	let mut app = cli::AppState {
 		player: &mut player,
 		config: &mut config,
-		loaded: None
+		all: &mut all
 	};	
 	loop {
 		let line = cli::readline()?;

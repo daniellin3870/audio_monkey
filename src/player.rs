@@ -132,12 +132,11 @@ impl Audio {
 impl From<Audio> for JsonValue {
 	fn from(audio: Audio) -> Self {
 		object!(
-			name: audio.name().clone(),
+			name: audio.name(),
 			duration: *audio.duration(),
 			path: audio.path()
-				.clone()
 				.to_str()
-				.unwrap_or("invalid path")
+				.unwrap_or_else(|| "invalid path")
 				.to_string()
 		)
 	}
@@ -153,7 +152,7 @@ impl Clone for Audio {
 	}
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Playlist {
 	name: String,
 	count: u64,

@@ -30,9 +30,10 @@ pub fn init() -> Result<(), String> {
 //	Ok(())
 //}
 
-pub fn save(playlist_path: &Path, all: &Vec<Playlist>) -> Result<(), String> {
+pub fn save<P: AsRef<Path>>(playlist_path: P, all: &Vec<Playlist>) -> Result<(), String> {
 	use json::JsonValue;
 
+	let playlist_path = playlist_path.as_ref();
 	let mut buffer: String = String::new();
 
 	for list in all {
@@ -46,13 +47,13 @@ pub fn save(playlist_path: &Path, all: &Vec<Playlist>) -> Result<(), String> {
 	
 }
 
-pub fn load(dir: PathBuf) -> Result<Vec<Playlist>, String> {
-	todo!();
+pub fn load<P: AsRef<Path>>(playlist_path: P) -> Result<Vec<Playlist>, String> {
 	//TODO: make this work, experiment with the parsing and ish
+	let playlist_path = playlist_path.as_ref();
 
 	let mut playlists: Vec<Playlist> = Vec::new();
 	
-	let buffer = fs::read_to_string(dir)
+	let buffer = fs::read_to_string(playlist_path)
 		.map_err(|e| e.to_string())?;
 
 	let buffer = json::parse(&buffer)

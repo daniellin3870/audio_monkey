@@ -71,33 +71,56 @@ enum ConfigKey {
 #[derive(Subcommand, Clone, Debug, PartialEq)]
 enum PlaylistOptions {
 	Add {
+		playlist: String,
 		song: String
 	},
 	Sub {
+		playlist: String,
 		song: String
 	},
-	Load {
-		name: String	
-	},
 	Rename {
-		name: String
+		playlist: String,
+		new_name: String
 	},
 	Create {
 		name: String
 	},
 	Save,
-
+	List { 
+		playlist: String 
+	},
 }
+
 
 pub struct AppState<'a> {
 	pub player: &'a mut Player,
 	pub config: &'a mut Config,
-	pub loaded: Option<Playlist>
+	pub all:    &'a mut Vec<Playlist>,
 }
 
 impl<'a> AppState<'a> {
-	fn load(&mut self, playlist: Playlist) {
-		self.loaded = Some(playlist);
+	pub fn playlist_add<P: AsRef<Path>>(&mut self, name: String, song: P) -> Result<(), String> {
+		let song = song.as_ref();
+		for list in self.all.iter_mut() {
+			if list.name() == &name {
+				list.songs.push(search_audio(song)?);
+			}
+		}
+		Err(format!("playlist \"{name}\" not found"))
+	}
+	//pub fn playlist_sub<P: AsRef<Path>>(&mut self, name: String, song: P) -> Result<(), String> {
+	//	let song = song.as_ref();
+	//	let all = self.all;
+	//	all.push(search_audio(song)?);
+	//}
+	pub fn set_playlist_name(&mut self, name: String, new_name: String) -> Result<(), String> {
+		for list in self.all.iter_mut() {
+			if list.name() == &name {
+				list.set_name(new_name);
+				return Ok(());
+			}
+		}
+		Err(format!("playlist \"{name}\" not found"))
 	}
 }
 
@@ -229,58 +252,29 @@ fn format_from_secs(secs: u64) -> String {
 }
 
 #[allow(dead_code, unused_variables)]
-fn parse_playlist_command(app: &mut AppState, option: Option<PlaylistOptions>, playlist_path: PathBuf) -> Result<(), String> {
+fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_path: PathBuf) -> Result<(), String> {
 	use PlaylistOptions::*;
 	//TODO: allow multiple songs for add and sub
 	//TODO: optimize with hashmaps and ish
 	//TODO: finish the rest of the options
 
-	let loaded = app.loaded.as_mut().unwrap();
 
-	if let Some(option) = option {
-		if app.loaded.is_none() && 
-			matches!(&option, PlaylistOptions::Create { name: _ } | PlaylistOptions::Load { name: _ }) {
-			return Err(String::from("no playlist loaded"));
+	match option {
+		Add { playlist, song } => {
+			app.playlist_add(playlist, song)?;
+		}	
+		Sub { playlist, song } => {
+			//app.playlist_sub(playlist, song)?;
 		}
-		match option {
-			Add { song } => {
-				loaded.songs.push(search_audio(&song)?);
-			}	
-			Sub { song } => {
-				for i in 0..loaded.count() as usize {
-					if *loaded.songs[i].name() == song {
-						loaded.songs.remove(i);
-						return Ok(())
-					}
-				}
-			}
-			Load { name } => {
-				for list in app.all {
-					if list.name() == name {
-						app.load(list);
-					}
-				};
-			}
-			Rename { name } => loaded.set_name(name),
-			Create { name } => {
-				let mut playlist: Playlist = Playlist::default();
-				playlist.set_name(name);
-				app.load(playlist);
-			}
-			Save => {
-				crate::data::save(&playlist_path, app.all)?;
-			},
+		Rename { playlist, new_name } => app.set_playlist_name(playlist, new_name)?,
+		Create { name } => {
+
 		}
-	}
-	else {
-		if app.loaded.is_none() {
-			return Err(String::from("no playlist loaded"));
-		}
-		let mut buffer = *loaded.name() + "\n\n"; 
-	
-		for song in loaded.songs() {
-			let song_name = song.name();
-			buffer = buffer + &format!("{song_name}\n");
+		Save => {
+			crate::data::save(&playlist_path, &app.all)?;
+		},
+		List { playlist } => {
+			todo!();
 		}
 	}
 	Ok(())
