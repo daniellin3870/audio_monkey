@@ -95,7 +95,7 @@ impl Default for Player {
 	}
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Audio {
 	name: String,
 	duration: u64, // seconds
@@ -121,8 +121,8 @@ impl Audio {
 	pub fn name(&self) -> &str {
 		&self.name
 	}
-	pub fn duration(&self) -> &u64 {
-		&self.duration
+	pub fn duration(&self) -> u64 {
+		self.duration
 	} 
 	pub fn path(&self) -> &Path {
 		&self.path
@@ -133,7 +133,7 @@ impl From<Audio> for JsonValue {
 	fn from(audio: Audio) -> Self {
 		object!(
 			name: audio.name(),
-			duration: *audio.duration(),
+			duration: audio.duration(),
 			path: audio.path()
 				.to_str()
 				.unwrap_or_else(|| "invalid path")
@@ -142,6 +142,19 @@ impl From<Audio> for JsonValue {
 	}
 }
 
+impl From<JsonValue> for Audio {
+	fn from(v: JsonValue) -> Self {
+		Audio::new(v["path"].as_str().unwrap())
+			.expect("bad JsonValue to Audio conversion")
+	}
+}
+
+impl From<&JsonValue> for Audio {
+	fn from(v: &JsonValue) -> Self {
+		Audio::new(v["path"].as_str().unwrap())
+			.expect("bad JsonValue to Audio conversion")
+	}
+}
 impl Clone for Audio {
 	fn clone(&self) -> Audio {
 		Audio {
@@ -152,7 +165,7 @@ impl Clone for Audio {
 	}
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug,Serialize, Deserialize)]
 pub struct Playlist {
 	name: String,
 	count: u64,
@@ -160,7 +173,9 @@ pub struct Playlist {
 }
 
 impl Playlist {
-	pub fn new(name: String, songs: Vec<Audio>) -> Self {
+	pub fn new<S: AsRef<str>>(name: S, songs: Vec<Audio>) -> Self {
+		let name = name.as_ref().to_string();
+
 		Playlist {
 			name,
 			count: songs.len() as u64,
@@ -204,6 +219,36 @@ impl From<Playlist> for JsonValue {
 			count: pl.count(),
 			songs: *pl.songs().clone()
 		)
+	}
+}
+
+impl From<JsonValue> for Playlist {
+	fn from(v: JsonValue) -> Self {
+		// iterator over a list of Audio
+		let members = v["songs"].members();
+		let mut songs = Vec::<Audio>::new();
+		for song in members {
+			songs.push(song.into());
+		}
+		
+		let name = v["name"].as_str().unwrap_or("");
+
+		Playlist::new(name, songs)
+	}
+}
+
+impl From<&JsonValue> for Playlist {
+	fn from(v: &JsonValue) -> Self {
+		// iterator over a list of Audio
+		let members = v["songs"].members();
+		let mut songs = Vec::<Audio>::new();
+		for song in members {
+			songs.push(song.into());
+		}
+		
+		let name = v["name"].as_str().unwrap_or("");
+
+		Playlist::new(name, songs)
 	}
 }
 

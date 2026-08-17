@@ -16,6 +16,11 @@ pub struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
 	Play { 
+		#[arg(
+			short = 'p',
+			default_value_t = false
+		)]
+		playlist: bool,
 		path: Option<String>
 	},
 	Pause,
@@ -68,7 +73,7 @@ enum ConfigKey {
 }
 
 
-#[derive(Subcommand, Clone, Debug, PartialEq)]
+#[derive(Subcommand, Clone, Debug)]
 enum PlaylistOptions {
 	Add {
 		playlist: String,
@@ -99,14 +104,17 @@ pub struct AppState<'a> {
 }
 
 impl<'a> AppState<'a> {
-	pub fn playlist_add<P: AsRef<Path>>(&mut self, name: String, song: P) -> Result<(), String> {
+	pub fn playlist_add<P: AsRef<Path>>(&mut self, playlist: String, song: P) -> Result<(), String> {
 		let song = song.as_ref();
-		for list in self.all.iter_mut() {
-			if list.name() == &name {
-				list.songs.push(search_audio(song)?);
-			}
-		}
-		Err(format!("playlist \"{name}\" not found"))
+
+		Ok(search_playlist_mut(&mut self.all, playlist)?
+			.songs
+			.push(search_audio(song)?))
+		//for list in self.all.iter_mut() {
+		//	if list.name() == &playlist{
+		//		list.songs.push(search_audio(song)?);
+		//	}
+		//}
 	}
 	//pub fn playlist_sub<P: AsRef<Path>>(&mut self, name: String, song: P) -> Result<(), String> {
 	//	let song = song.as_ref();
@@ -114,13 +122,15 @@ impl<'a> AppState<'a> {
 	//	all.push(search_audio(song)?);
 	//}
 	pub fn set_playlist_name(&mut self, name: String, new_name: String) -> Result<(), String> {
-		for list in self.all.iter_mut() {
-			if list.name() == &name {
-				list.set_name(new_name);
-				return Ok(());
-			}
-		}
-		Err(format!("playlist \"{name}\" not found"))
+		Ok(search_playlist_mut(&mut self.all, name)?
+			.set_name(new_name))
+		//for list in self.all.iter_mut() {
+		//	if list.name() == &name {
+		//		list.set_name(new_name);
+		//		return Ok(());
+		//	}
+		//}
+		//Err(format!("playlist \"{name}\" not found"))
 	}
 }
 
@@ -139,7 +149,8 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
-		Commands::Play{ path } => { 
+		//TODO: add playlist functionality
+		Commands::Play{ playlist: _, path } => { 
 			if let Some(p) = path {
 				let audio = Audio::new(&p)?;
 				app.player.play_audio(audio)?;
@@ -168,7 +179,9 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				); 
 			}
 		}
-		Commands::Playlist { option: _ } => todo!(),
+		Commands::Playlist { option } => {
+			parse_playlist_command(app, option, playlist_path)?
+		}
 		Commands::Config { option } => parse_config_command(app, option, config_path)?,
 		Commands::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
@@ -225,8 +238,8 @@ fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: 
 	Ok(())
 }
 
-fn get_paths_from_dir(path: &String) -> Result<Vec<PathBuf>, String> {
-	let path = std::path::PathBuf::from(path);
+fn get_children<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>, String> {
+	let path = path.as_ref();
 	
 	let dir_entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
 
@@ -268,13 +281,16 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 		}
 		Rename { playlist, new_name } => app.set_playlist_name(playlist, new_name)?,
 		Create { name } => {
-
+			//TODO: check if name already exists in all
+			let mut playlist = Playlist::default();
+			playlist.set_name(name);
+			app.all.push(playlist);
 		}
 		Save => {
 			crate::data::save(&playlist_path, &app.all)?;
 		},
 		List { playlist } => {
-			todo!();
+			
 		}
 	}
 	Ok(())
@@ -329,4 +345,24 @@ fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <(), 
 		Background     => color.background = Color::from_str(&value)?
 	}	
 	Ok(())
+}
+
+fn search_playlist<S: AsRef<str>>(all: &Vec<Playlist>, playlist: S) -> Result<&Playlist, String> {
+	let playlist = playlist.as_ref();
+	for list in all {
+		if list.name() == playlist {
+			return Ok(&list);
+		}
+	}
+	Err(format!("Playlist '{playlist}' not found"))
+}
+
+fn search_playlist_mut<S: AsRef<str>>(all: &mut Vec<Playlist>, playlist: S) -> Result<&mut Playlist, String> {
+	let playlist = playlist.as_ref();
+	for list in all.iter_mut() {
+		if list.name() == &playlist{
+			return Ok(&mut *list);
+		}
+	}
+	Err(format!("Playlist '{playlist}' not found"))
 }

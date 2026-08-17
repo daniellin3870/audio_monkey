@@ -16,10 +16,11 @@ fn main() -> Result<(), String> {
 	let playlist_path = std::env::home_dir()
 		.ok_or("no home directory")
 		.unwrap()
-		.join(".config/audio_monkey/config.toml");
+		.join(".local/share/audio_monkey/playlist.json");
 
 	data::init()?;
 	cfg::init()?;
+
 	let mut config = cfg::load(config_path)?;
 	
 	let mut player: Player = Player::new();
