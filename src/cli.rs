@@ -104,23 +104,27 @@ pub struct AppState<'a> {
 }
 
 impl<'a> AppState<'a> {
-	pub fn playlist_add<P: AsRef<Path>>(&mut self, playlist: String, song: P) -> Result<(), String> {
+	//TODO: add functionality for relative and absolute paths
+	pub fn add_audio<P: AsRef<Path>>(&mut self, playlist: String, song: P) -> Result<(), String> {
 		let song = song.as_ref();
 
 		Ok(search_playlist_mut(&mut self.all, playlist)?
 			.songs
 			.push(search_audio(song)?))
-		//for list in self.all.iter_mut() {
-		//	if list.name() == &playlist{
-		//		list.songs.push(search_audio(song)?);
-		//	}
-		//}
 	}
-	//pub fn playlist_sub<P: AsRef<Path>>(&mut self, name: String, song: P) -> Result<(), String> {
-	//	let song = song.as_ref();
-	//	let all = self.all;
-	//	all.push(search_audio(song)?);
-	//}
+	pub fn sub_audio<P: AsRef<Path>>(&mut self, playlist: String, song: P) -> Result<(), String> {
+		let song = song.as_ref();
+		let list = search_playlist_mut(&mut self.all, &playlist)?;
+		for i in 0..list.songs.len() {
+			if list.songs[i].path() == song {
+				list.songs.remove(i);
+				println!("removed {}", song.display());
+				return Ok(());
+			}	
+		}
+		let song = song.display();
+		Err(format!("'{song}' not found in '{playlist}'"))
+	}
 	pub fn set_playlist_name(&mut self, name: String, new_name: String) -> Result<(), String> {
 		Ok(search_playlist_mut(&mut self.all, name)?
 			.set_name(new_name))
@@ -268,20 +272,21 @@ fn format_from_secs(secs: u64) -> String {
 fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_path: PathBuf) -> Result<(), String> {
 	use PlaylistOptions::*;
 	//TODO: allow multiple songs for add and sub
-	//TODO: optimize with hashmaps and ish
 	//TODO: finish the rest of the options
 
 
 	match option {
 		Add { playlist, song } => {
-			app.playlist_add(playlist, song)?;
+			app.add_audio(playlist, song)?;
 		}	
 		Sub { playlist, song } => {
-			//app.playlist_sub(playlist, song)?;
+			app.sub_audio(playlist, song)?;
 		}
 		Rename { playlist, new_name } => app.set_playlist_name(playlist, new_name)?,
 		Create { name } => {
-			//TODO: check if name already exists in all
+			if playlist_exists(&app.all, &name) {
+				return Err(format!("'{name}' already exists"));
+			}
 			let mut playlist = Playlist::default();
 			playlist.set_name(name);
 			app.all.push(playlist);
@@ -365,4 +370,11 @@ fn search_playlist_mut<S: AsRef<str>>(all: &mut Vec<Playlist>, playlist: S) -> R
 		}
 	}
 	Err(format!("Playlist '{playlist}' not found"))
+}
+
+fn playlist_exists<S: AsRef<str>>(all: &Vec<Playlist>, playlist: S) -> bool {
+	if let Ok(_) = search_playlist(&all, playlist) {
+		return true;
+	}
+	false
 }

@@ -51,7 +51,6 @@ pub fn save<P: AsRef<Path>>(playlist_path: P, all: &Vec<Playlist>) -> Result<(),
 }
 
 pub fn load<P: AsRef<Path>>(playlist_path: P) -> Result<Vec<Playlist>, String> {
-	//TODO: currently not parsing correctly
 	let playlist_path = playlist_path.as_ref();
 
 	let buffer = fs::read_to_string(playlist_path)

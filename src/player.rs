@@ -129,8 +129,8 @@ impl Audio {
 	} 
 }
 
-impl From<Audio> for JsonValue {
-	fn from(audio: Audio) -> Self {
+impl From<&Audio> for JsonValue {
+	fn from(audio: &Audio) -> Self {
 		object!(
 			name: audio.name(),
 			duration: audio.duration(),
@@ -142,10 +142,15 @@ impl From<Audio> for JsonValue {
 	}
 }
 
+impl From<Audio> for JsonValue {
+	fn from(audio: Audio) -> Self {
+		JsonValue::from(&audio)
+	}
+}
+
 impl From<JsonValue> for Audio {
 	fn from(v: JsonValue) -> Self {
-		Audio::new(v["path"].as_str().unwrap())
-			.expect("bad JsonValue to Audio conversion")
+		Audio::from(v)
 	}
 }
 
@@ -211,31 +216,6 @@ impl Default for Playlist {
 		}
 	}
 }
-//TODO: use AsRef to combine these
-impl From<Playlist> for JsonValue {
-	fn from(pl: Playlist) -> Self {
-		object!(
-			name:  &pl.name()[..],
-			count: pl.count(),
-			songs: *pl.songs().clone()
-		)
-	}
-}
-
-impl From<JsonValue> for Playlist {
-	fn from(v: JsonValue) -> Self {
-		// iterator over a list of Audio
-		let members = v["songs"].members();
-		let mut songs = Vec::<Audio>::new();
-		for song in members {
-			songs.push(song.into());
-		}
-		
-		let name = v["name"].as_str().unwrap_or("");
-
-		Playlist::new(name, songs)
-	}
-}
 
 impl From<&JsonValue> for Playlist {
 	fn from(v: &JsonValue) -> Self {
@@ -252,6 +232,13 @@ impl From<&JsonValue> for Playlist {
 	}
 }
 
+impl From<JsonValue> for Playlist {
+	fn from(v: JsonValue) -> Self {
+		Playlist::from(&v)
+	}
+}
+
+
 impl From<&Playlist> for JsonValue {
 	fn from(pl: &Playlist) -> Self {
 		object!(
@@ -262,3 +249,8 @@ impl From<&Playlist> for JsonValue {
 	}
 }
 
+impl From<Playlist> for JsonValue {
+	fn from(pl: Playlist) -> Self {
+		JsonValue::from(&pl)
+	}
+}
