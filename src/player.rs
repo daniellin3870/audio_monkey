@@ -150,7 +150,7 @@ impl From<Audio> for JsonValue {
 
 impl From<JsonValue> for Audio {
 	fn from(v: JsonValue) -> Self {
-		Audio::from(v)
+		Audio::from(&v)
 	}
 }
 
