@@ -81,7 +81,7 @@ enum PlaylistOptions {
 	},
 	Sub {
 		playlist: String,
-		song: String
+		songs: Vec<String>
 	},
 	Rename {
 		playlist: String,
@@ -104,7 +104,6 @@ pub struct AppState<'a> {
 }
 
 impl<'a> AppState<'a> {
-	//TODO: add functionality for relative and absolute paths
 	pub fn add_audio<P: AsRef<Path>>(&mut self, playlist: String, songs: Vec<P>) -> Result<(), String> {
 		let mut results: Vec<Audio> = Vec::new();
 		for song in songs {
@@ -133,18 +132,21 @@ impl<'a> AppState<'a> {
 		list.add_songs(results);
 		Ok(())
 	}
-	pub fn sub_audio<P: AsRef<Path>>(&mut self, playlist: String, song: P) -> Result<(), String> {
-		let song = song.as_ref();
+	pub fn sub_audio(&mut self, playlist: String, songs: Vec<String>) -> Result<(), String> {
 		let list = self.search_playlist_mut(&playlist)?;
-		for i in 0..list.songs.len() {
-			if list.songs[i].path() == song {
-				list.songs.remove(i);
-				println!("removed {}", song.display());
-				return Ok(());
-			}	
-		}
-		let song = song.display();
-		Err(format!("'{song}' not found in '{playlist}'"))
+
+		list.sub_songs(songs);
+
+		Ok(())
+		//for i in 0..list.songs.len() {
+		//	if list.songs[i].path() == song {
+		//		list.songs.remove(i);
+		//		println!("removed {}", song.display());
+		//		return Ok(());
+		//	}	
+		//}
+		//let song = song.display();
+		//Err(format!("'{song}' not found in '{playlist}'"))
 	}
 	pub fn set_playlist_name(&mut self, name: String, new_name: String) -> Result<(), String> {
 		Ok(self.search_playlist_mut(name)?
@@ -173,7 +175,7 @@ impl<'a> AppState<'a> {
 
 		let playlist = playlist.as_ref();
 		for list in all.iter_mut() {
-			if list.name() == &playlist{
+			if list.name() == playlist {
 				return Ok(&mut *list);
 			}
 		}
@@ -329,8 +331,8 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 		Add { playlist, songs } => {
 			app.add_audio(playlist, songs)?;
 		}	
-		Sub { playlist, song } => {
-			app.sub_audio(playlist, song)?;
+		Sub { playlist, songs } => {
+			app.sub_audio(playlist, songs)?;
 		}
 		Rename { playlist, new_name } => app.set_playlist_name(playlist, new_name)?,
 		Create { name } => {

@@ -196,7 +196,22 @@ impl Playlist {
 		}
 		self.count = self.songs.len() as u64;
 	}
-	pub fn name(&self) -> &String {
+	pub fn sub_songs(&mut self, songs: Vec<String>) {
+		use std::collections::HashMap;
+		let mut map: HashMap<String, Audio> = HashMap::new();
+
+		for song in &self.songs {
+			map.insert(song.name().to_owned(), song.clone());
+		}	
+
+		for song in &songs {
+			map.remove(song);
+		}
+
+		self.songs = map.into_values().collect();
+
+	}
+	pub fn name(&self) -> &str {
 		&self.name
 	}
 	pub fn count(&self) -> u64 {
@@ -254,3 +269,4 @@ impl From<Playlist> for JsonValue {
 		JsonValue::from(&pl)
 	}
 }
+
