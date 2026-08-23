@@ -21,7 +21,7 @@ enum Commands {
 			default_value_t = false
 		)]
 		playlist: bool,
-		path: Option<String>
+		value: Option<String>
 	},
 	Pause,
 	#[command(name = "playpause", alias = "pp")]
@@ -92,6 +92,11 @@ enum PlaylistOptions {
 	},
 	Save,
 	List { 
+		#[arg(
+			short = 'v',
+			default_value_t = false
+		)]
+		verbose: bool,
 		playlist: String 
 	},
 }
@@ -205,11 +210,18 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
-		//TODO: add playlist functionality
-		Commands::Play{ playlist: _, path } => { 
-			if let Some(p) = path {
-				let audio = Audio::new(&p)?;
-				app.player.play_audio(audio)?;
+		//TODO: test this
+		Commands::Play{ playlist, value } => { 
+			if let Some(p) = value {
+				if playlist {
+					let list = app.search_playlist(p)?;
+					
+					app.player.playlist(&list.clone());
+				}
+				else {
+					let audio = Audio::new(&p)?;
+					app.player.play_audio(audio)?;
+				}
 			}
 			else {
 				app.player.play(); 
@@ -323,9 +335,6 @@ fn format_from_secs(secs: u64) -> String {
 #[allow(dead_code, unused_variables)]
 fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_path: PathBuf) -> Result<(), String> {
 	use PlaylistOptions::*;
-	//TODO: allow multiple songs for add and sub
-	//TODO: finish the rest of the options
-
 
 	match option {
 		Add { playlist, songs } => {
@@ -334,7 +343,9 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 		Sub { playlist, songs } => {
 			app.sub_audio(playlist, songs)?;
 		}
-		Rename { playlist, new_name } => app.set_playlist_name(playlist, new_name)?,
+		Rename { playlist, new_name } => {
+			app.set_playlist_name(playlist, new_name)?;
+		}
 		Create { name } => {
 			if app.playlist_exists(&name) {
 				return Err(format!("'{name}' already exists"));
@@ -345,9 +356,23 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 		}
 		Save => {
 			crate::data::save(&playlist_path, &app.all)?;
-		},
-		List { playlist } => {
+		}
+		List { verbose, playlist } => {
+			let list = app.search_playlist(playlist)?;
+			let list_name = list.name();
+			let list_count = list.count();
+			let mut buffer = format!("{list_name} ({list_count})\n");
 
+			for song in &list.songs {
+				let song_name = song.name();
+				buffer = buffer + &format!("\t{song_name}\n");
+				if verbose {
+					let song_duration = format_from_secs(song.duration());
+					let song_path = song.path().to_string_lossy();
+					buffer = buffer + &format!("\t\t{song_duration}\n\t\t{song_path}\n");
+				}
+			}
+			println!("{}", buffer);
 		}
 	}
 	Ok(())

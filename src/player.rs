@@ -76,15 +76,14 @@ impl Player {
 		drop(self.player);
 	}
 	
-	pub fn playlist(&mut self, playlist: Playlist) -> Result<(), String> {
-		for song in playlist.songs {
+	pub fn playlist(&mut self, playlist: &Playlist)  {
+		for song in &playlist.songs {
 			if let Err(e) = self.queue_audio(&song) {
 				println!("unable to play {0}, skipping.", song.name());
 				print!("{:#?}", e);
 				continue;
 			}
 		}	
-		Ok(())
 	}
 
 }
