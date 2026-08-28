@@ -15,8 +15,10 @@ pub struct Player {
 impl Player {
 	pub fn new() -> Self {
 		
-		let stream_handle = rodio::DeviceSinkBuilder::open_default_sink()
+		let mut stream_handle = rodio::DeviceSinkBuilder::open_default_sink()
 			.expect("open default audio stream");
+
+		stream_handle.log_on_drop(false);
 		
 		let player = rodio::Player::connect_new(stream_handle.mixer());
 		Player {
