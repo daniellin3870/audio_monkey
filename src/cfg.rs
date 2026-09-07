@@ -1,7 +1,7 @@
 use std::path::{PathBuf, Path};
 use std::fs::{self, OpenOptions};
 use std::str::FromStr;
-use std::fmt::Display;
+use std::fmt::{self, Display};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 
@@ -50,16 +50,30 @@ pub struct Config {
 	pub color: ColorConfig
 }
 
-//impl std::fmt::Display for Config {
-//
-//	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//		let player = self.player;
-//		let downloader = self.downloader;
-//		let color = self.color;
-//
-//		let buffer = format!()
-//	}
-//}
+impl Display for Config {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
+		write!(f,
+"Player
+	music_directory: {}
+	volume: {}
+	playback_speed: {}
+Downloader
+	download_path: {}
+	options: {}
+	format: {}
+Color
+	background: {}",
+				&self.player.music_directory,
+				&self.player.volume,
+				&self.player.playback_speed,
+				&self.downloader.download_path,
+				&self.downloader.options,
+				&self.downloader.format,
+				&self.color.background
+			  )
+	}
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {

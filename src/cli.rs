@@ -210,7 +210,6 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
-		//TODO: test this
 		Commands::Play{ playlist, value } => { 
 			if let Some(p) = value {
 				if playlist {
@@ -219,7 +218,16 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 					app.player.playlist(&list.clone());
 				}
 				else {
-					let audio = Audio::new(&p)?;
+					let p = Path::new(&p);
+					let audio: Audio;
+					if p.is_relative() {
+						let path = PathBuf::from(&app.config.player.music_directory)
+							.join(&p);
+						audio = search_audio(path)?;
+					}
+					else {
+						audio = search_audio(p)?;
+					}
 					app.player.play_audio(audio)?;
 				}
 			}
@@ -395,8 +403,7 @@ fn parse_config_command(app: &mut AppState, option: ConfigOption, dir: PathBuf) 
 	use ConfigOption::*;
 	match option {
 		Get => {
-			//TODO: make it print prettier
-			println!("{:#?}", app.config);
+			println!("{}", app.config);
 			Ok(())
 		}
 		Save => {
