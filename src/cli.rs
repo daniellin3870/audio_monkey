@@ -342,19 +342,19 @@ fn format_from_secs(secs: u64) -> String {
 
 #[allow(dead_code, unused_variables)]
 fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_path: PathBuf) -> Result<(), String> {
-	use PlaylistOptions::*;
+	type PO = PlaylistOptions;
 
 	match option {
-		Add { playlist, songs } => {
+		PO::Add { playlist, songs } => {
 			app.add_audio(playlist, songs)?;
 		}	
-		Sub { playlist, songs } => {
+		PO::Sub { playlist, songs } => {
 			app.sub_audio(playlist, songs)?;
 		}
-		Rename { playlist, new_name } => {
+		PO::Rename { playlist, new_name } => {
 			app.set_playlist_name(playlist, new_name)?;
 		}
-		Create { name } => {
+		PO::Create { name } => {
 			if app.playlist_exists(&name) {
 				return Err(format!("'{name}' already exists"));
 			}
@@ -362,10 +362,10 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 			playlist.set_name(name);
 			app.all.push(playlist);
 		}
-		Save => {
+		PO::Save => {
 			crate::data::save(&playlist_path, &app.all)?;
 		}
-		List { verbose, playlist } => {
+		PO::List { verbose, playlist } => {
 			let list = app.search_playlist(playlist)?;
 			let list_name = list.name();
 			let list_count = list.count();
@@ -416,22 +416,23 @@ fn parse_config_command(app: &mut AppState, option: ConfigOption, dir: PathBuf) 
 }
 
 fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <(), String> {
-	use ConfigKey::*;
 	use crate::cfg::Color;
 	use std::str::FromStr;
+
+	type CK = ConfigKey;
 
 	let player = &mut app.config.player; 
 	let downloader = &mut app.config.downloader; 
 	let color = &mut app.config.color; 
 
 	match key {
-		MusicDirectory => player.music_directory = value,
-		Volume         => player.volume = value.parse::<f64>().map_err(|e| e.to_string())?,
-		PlaybackSpeed  => player.playback_speed = value.parse::<f64>().map_err(|e| e.to_string())?,
-		DownloadPath   => downloader.download_path = value,
-		Options        => downloader.options = value,
-		Format         => downloader.format = value,
-		Background     => color.background = Color::from_str(&value)?
+		CK::MusicDirectory => player.music_directory = value,
+		CK::Volume         => player.volume = value.parse::<f64>().map_err(|e| e.to_string())?,
+		CK::PlaybackSpeed  => player.playback_speed = value.parse::<f64>().map_err(|e| e.to_string())?,
+		CK::DownloadPath   => downloader.download_path = value,
+		CK::Options        => downloader.options = value,
+		CK::Format         => downloader.format = value,
+		CK::Background     => color.background = Color::from_str(&value)?
 	}	
 	Ok(())
 }
