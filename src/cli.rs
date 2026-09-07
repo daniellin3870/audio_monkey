@@ -40,7 +40,7 @@ enum Commands {
 	},
 	Config {
 		#[command(subcommand)]
-		option: ConfigOption,
+		option: ConfigOptions,
 	},
 	Playlist {
 		#[command(subcommand)]
@@ -51,7 +51,7 @@ enum Commands {
 
 
 #[derive(Subcommand, Clone, Debug)]
-enum ConfigOption {
+enum ConfigOptions {
 	Get,
 	Save,
 	Set {
@@ -399,17 +399,19 @@ fn search_audio<P: AsRef<Path>>(path: P) -> Result<Audio, String> {
 
 }
 
-fn parse_config_command(app: &mut AppState, option: ConfigOption, dir: PathBuf) -> Result<(), String> {
-	use ConfigOption::*;
+fn parse_config_command(app: &mut AppState, option: ConfigOptions, dir: PathBuf) -> Result<(), String> {
+
+	type CO = ConfigOptions;
+	
 	match option {
-		Get => {
+		CO::Get => {
 			println!("{}", app.config);
 			Ok(())
 		}
-		Save => {
+		CO::Save => {
 			crate::cfg::save(dir, app.config) 
 		}
-		Set { key, value } => {
+		CO::Set { key, value } => {
 			config_set(app, key, value)
 		}
 	}
