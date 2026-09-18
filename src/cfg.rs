@@ -77,6 +77,7 @@ Color
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {
+	//TODO: add default_loop and default_shuffle fields
 	pub music_directory: String,
 	pub volume: f64,
 	pub playback_speed: f64
@@ -129,6 +130,7 @@ pub fn load(config_dir: PathBuf) -> Result<Config, String> {
 	let config_contents = fs::read_to_string(config_dir).map_err(|e| e.to_string())?; 
 	toml::from_str::<Config>(&config_contents).map_err(|e| e.to_string())
 }
+
 #[cfg(test)]
 mod tests {
 	use super::*;

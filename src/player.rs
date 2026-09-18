@@ -13,6 +13,8 @@ pub struct Player {
 }
 
 impl Player {
+	//NOTE: This seems to have fixed itself with crate updates
+	//TODO: fix buffer over/underruns, change buffer sizes for CPAL
 	pub fn new() -> Self {
 		
 		let mut stream_handle = rodio::DeviceSinkBuilder::open_default_sink()

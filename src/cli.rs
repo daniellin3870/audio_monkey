@@ -1,7 +1,9 @@
 use clap::{ValueEnum, Parser, Subcommand}; 
+use rand::seq::SliceRandom;
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 use crate::player::{Audio, Player, Playlist};
 use crate::cfg::Config;
@@ -21,6 +23,11 @@ enum Commands {
 			default_value_t = false
 		)]
 		playlist: bool,
+		#[arg(
+			short = 's',
+			requires("playlist")
+		)]
+		shuffle: bool,
 		value: Option<String>
 	},
 	Pause,
@@ -45,6 +52,9 @@ enum Commands {
 	Playlist {
 		#[command(subcommand)]
 		option: PlaylistOptions,
+	},
+	Duration {
+		path: String,
 	},
 	Exit
 }
@@ -109,27 +119,27 @@ pub struct AppState<'a> {
 }
 
 impl<'a> AppState<'a> {
-	pub fn add_audio<P: AsRef<Path>>(&mut self, playlist: String, songs: Vec<P>) -> Result<(), String> {
+	pub fn add_audio<P: AsRef<Path>>(&mut self, playlist: String, song_paths: Vec<P>) -> Result<(), String> {
 		let mut results: Vec<Audio> = Vec::new();
-		for song in songs {
-			let song = song.as_ref();
-			let path: PathBuf;
+		for path in song_paths {
+			let path = path.as_ref();
+			let new_path: PathBuf;
 
-			if song.is_relative() {
-				path = Path::new(&self.config.player.music_directory)
-					.join(song);
+			if path.is_relative() {
+				new_path = Path::new(&self.config.player.music_directory)
+					.join(path);
 			}
 			else {
-				path = song.to_path_buf();
+				new_path = path.into();
 			}
 
-			let result = search_audio(path);
+			let result = search_audio(new_path);
 			if let Err(e) = result {
 				println!("{}", e);
 				continue;
 			}
 			results.push(result?);			
-			println!("Added '{}' to '{}'", song.to_string_lossy(), &playlist)
+			println!("Added '{}' to '{}'", path.to_string_lossy(), &playlist)
 		}
 
 		let list = self.search_playlist_mut(&playlist)?;
@@ -197,6 +207,8 @@ impl<'a> AppState<'a> {
 
 pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	
+	type C = Commands;
+
 	let music_dir = &app.config.player.music_directory;
 	//let download_dir = &app.config.downloader.download_path;
 	let config_path: PathBuf = std::env::home_dir()
@@ -210,12 +222,21 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	let args = shlex::split(cmd).ok_or("invalid quotes")?;
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
-		Commands::Play{ playlist, value } => { 
+		C::Play{ playlist, shuffle, value } => { 
 			if let Some(p) = value {
 				if playlist {
 					let list = app.search_playlist(p)?;
-					
-					app.player.playlist(&list.clone());
+
+
+					if shuffle {
+						let mut new_list = list.clone();
+						new_list.songs.shuffle(&mut rand::rng());
+						app.player.playlist(&new_list);
+					}
+					else {
+						app.player.playlist(&list.clone());
+					}
+
 				}
 				else {
 					let p = Path::new(&p);
@@ -235,13 +256,13 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				app.player.play(); 
 			}
 		}
-		Commands::Pause => {
+		C::Pause => {
 			app.player.pause();
 		}
-		Commands::PlayPause => {
+		C::PlayPause => {
 			app.player.playpause();
 		} 
-		Commands::Download { playlist, format, url, name} => {
+		C::Download { playlist, format, url, name} => {
 			if let Err(e) = download_audio(
 				app,
 				playlist, 
@@ -255,11 +276,29 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				); 
 			}
 		}
-		Commands::Playlist { option } => {
+		C::Playlist { option } => {
 			parse_playlist_command(app, option, playlist_path)?
 		}
-		Commands::Config { option } => parse_config_command(app, option, config_path)?,
-		Commands::Exit => {
+		C::Config { option } => parse_config_command(app, option, config_path)?,
+		C::Duration { path } => {
+			let path = Path::new(&path);
+			let new_path: PathBuf;
+
+			let music_dir = &app.config.player.music_directory;
+
+			if path.is_relative() {
+				new_path = Path::new(music_dir).join(path);
+			}
+			else {
+				new_path = path.into();
+			}
+
+			let audio: Audio = search_audio(new_path)?;
+
+			println!("{}", format_from_secs(audio.duration()));
+
+		}
+		C::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
 		}
@@ -333,9 +372,10 @@ fn get_children<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>, String> {
 fn format_from_secs(secs: u64) -> String {
 	let s: u64 = secs % 60;
 	let m: u64 = secs / 60; 
+	let h: u64 = m / 60;
 
-	if m / 60 != 0 { 
-		return format!("{0}:{1:02}:{2:02}", m / 60, m, s)
+	if h != 0 { 
+		return format!("{0}:{1:02}:{2:02}", h, m % 60, s)
 	}
 	format!("{:02}:{:02}", m, s)
 }
@@ -439,3 +479,16 @@ fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <(), 
 	Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_format() {
+		assert_eq!(&format_from_secs(0), "00:00");
+		assert_eq!(&format_from_secs(60), "01:00");
+		assert_eq!(&format_from_secs(3600), "1:00:00");
+		assert_eq!(&format_from_secs(4382), "1:13:02");
+	}	
+
+}

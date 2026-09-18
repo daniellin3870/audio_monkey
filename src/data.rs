@@ -56,24 +56,16 @@ pub fn load<P: AsRef<Path>>(playlist_path: P) -> Result<Vec<Playlist>, String> {
 	let buffer = fs::read_to_string(playlist_path)
 		.map_err(|e| e.to_string())?;
 
-	dbg!(&buffer);
-
 	let buffer = json::parse(&buffer)
 		.map_err(|e| e.to_string())?;
 
-	dbg!(&buffer);
-
 	let iterator = buffer.members();
 	
-	dbg!(&iterator);
-
 	let mut playlists: Vec<Playlist> = Vec::new();
 
 	for value in iterator {
 		playlists.push(value.into());
 	}
-
-	dbg!(&playlists);
 
 	Ok(playlists)
 }
