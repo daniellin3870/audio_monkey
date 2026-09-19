@@ -56,6 +56,7 @@ enum Commands {
 	Duration {
 		path: String,
 	},
+	Skip,
 	Exit
 }
 
@@ -74,8 +75,11 @@ enum ConfigOptions {
 #[derive(ValueEnum, Clone, Debug)]
 enum ConfigKey {
 	MusicDirectory,
+	//TODO: make volume, loop, playbackspeed do something
 	Volume,
 	PlaybackSpeed,
+	DefaultLoop,
+	DefaultShuffle,
 	DownloadPath,
 	Options,
 	Format,
@@ -227,8 +231,13 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				if playlist {
 					let list = app.search_playlist(p)?;
 
+					// ds | s
+					// 1    1  no 
+					// 0    1  shuffle
+					// 1    0  shuffle
+					// 0    0  no
 
-					if shuffle {
+					if shuffle != app.config.player.default_shuffle {
 						let mut new_list = list.clone();
 						new_list.songs.shuffle(&mut rand::rng());
 						app.player.playlist(&new_list);
@@ -298,6 +307,7 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 			println!("{}", format_from_secs(audio.duration()));
 
 		}
+		C::Skip => app.player.skip(),
 		C::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -471,6 +481,8 @@ fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <(), 
 		CK::MusicDirectory => player.music_directory = value,
 		CK::Volume         => player.volume = value.parse::<f64>().map_err(|e| e.to_string())?,
 		CK::PlaybackSpeed  => player.playback_speed = value.parse::<f64>().map_err(|e| e.to_string())?,
+		CK::DefaultLoop    => player.default_loop = value.parse::<bool>().map_err(|e| e.to_string())?,
+		CK::DefaultShuffle => player.default_shuffle = value.parse::<bool>().map_err(|e| e.to_string())?,
 		CK::DownloadPath   => downloader.download_path = value,
 		CK::Options        => downloader.options = value,
 		CK::Format         => downloader.format = value,

@@ -1,8 +1,12 @@
 use std::io::BufReader;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::num::NonZero;
 
-use rodio::{Decoder, MixerDeviceSink, source::Source};
+use rodio::{Decoder, MixerDeviceSink}; 
+use rodio::stream::DeviceSinkBuilder;
+use rodio::cpal::BufferSize; 
+use rodio::source::Source;
 use serde::{Serialize, Deserialize};
 
 use json::{object, JsonValue};
@@ -13,12 +17,15 @@ pub struct Player {
 }
 
 impl Player {
-	//NOTE: This seems to have fixed itself with crate updates
 	//TODO: fix buffer over/underruns, change buffer sizes for CPAL
 	pub fn new() -> Self {
 		
-		let mut stream_handle = rodio::DeviceSinkBuilder::open_default_sink()
-			.expect("open default audio stream");
+		let mut stream_handle = DeviceSinkBuilder::from_default_device()
+			.expect("failed to open default device")
+			.with_buffer_size(BufferSize::Fixed(2048))
+			.with_sample_rate(NonZero::new(48000).unwrap())
+			.open_stream()
+			.expect("failed to open default audio stream");
 
 		stream_handle.log_on_drop(false);
 		
@@ -78,6 +85,10 @@ impl Player {
 	
 	pub fn drop(self) {
 		drop(self.player);
+	}
+
+	pub fn skip(&self) {
+		self.player.skip_one();
 	}
 	
 	pub fn playlist(&mut self, playlist: &Playlist)  {

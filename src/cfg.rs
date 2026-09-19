@@ -53,23 +53,10 @@ pub struct Config {
 impl Display for Config {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
 		write!(f,
-"Player
-	music_directory: {}
-	volume: {}
-	playback_speed: {}
-Downloader
-	download_path: {}
-	options: {}
-	format: {}
-Color
-	background: {}",
-				&self.player.music_directory,
-				&self.player.volume,
-				&self.player.playback_speed,
-				&self.downloader.download_path,
-				&self.downloader.options,
-				&self.downloader.format,
-				&self.color.background
+				"{}\n{}\n{}\n",
+				&self.player,
+				&self.downloader,
+				&self.color
 			  )
 	}
 }
@@ -80,7 +67,27 @@ pub struct PlayerConfig {
 	//TODO: add default_loop and default_shuffle fields
 	pub music_directory: String,
 	pub volume: f64,
-	pub playback_speed: f64
+	pub playback_speed: f64,
+	pub default_loop: bool,
+   	pub default_shuffle: bool	
+}
+
+impl Display for PlayerConfig {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
+		write!(f,
+"Player
+	music_directory: {}
+	volume: {}
+	playback_speed: {}
+	default_loop: {}
+	default_shuffle: {}",
+				&self.music_directory,
+				&self.volume,
+				&self.playback_speed,
+				&self.default_loop,
+				&self.default_shuffle,
+			  )
+	}
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -90,9 +97,33 @@ pub struct DownloaderConfig {
 	pub format: String
 }
 
+impl Display for DownloaderConfig {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
+		write!(f,
+"Downloader
+	download_path: {}
+	options: {}
+	format: {}",
+				&self.download_path,
+				&self.options,
+				&self.format,
+			  )
+	}
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ColorConfig {
 	pub background: Color 
+}
+
+impl Display for ColorConfig {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result{
+		write!(f,
+"Color
+	background: {}",
+				&self.background
+			  )
+	}
 }
 
 pub fn init() -> Result<(), String> {
