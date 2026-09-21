@@ -210,7 +210,7 @@ impl Playlist {
 		}
 		self.count = self.songs.len() as u64;
 	}
-	pub fn sub_songs(&mut self, songs: Vec<String>) {
+	pub fn sub_songs(&mut self, songs: &Vec<String>) {
 		use std::collections::HashMap;
 		let mut map: HashMap<String, Audio> = HashMap::new();
 
@@ -218,7 +218,7 @@ impl Playlist {
 			map.insert(song.name().to_owned(), song.clone());
 		}	
 
-		for song in &songs {
+		for song in songs {
 			map.remove(song);
 		}
 

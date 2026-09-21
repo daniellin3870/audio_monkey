@@ -8,6 +8,8 @@ use std::collections::HashMap;
 use crate::player::{Audio, Player, Playlist};
 use crate::cfg::Config;
 
+type Result<T> = std::result::Result<T, String>;
+
 #[derive(Debug, Parser)]
 #[command(multicall = true)]
 pub struct Cli {
@@ -123,7 +125,7 @@ pub struct AppState<'a> {
 }
 
 impl<'a> AppState<'a> {
-	pub fn add_audio<P: AsRef<Path>>(&mut self, playlist: String, song_paths: Vec<P>) -> Result<(), String> {
+	pub fn add_audio<P: AsRef<Path>>(&mut self, playlist: String, song_paths: Vec<P>) -> Result<()> {
 		let mut results: Vec<Audio> = Vec::new();
 		for path in song_paths {
 			let path = path.as_ref();
@@ -151,34 +153,19 @@ impl<'a> AppState<'a> {
 		list.add_songs(results);
 		Ok(())
 	}
-	pub fn sub_audio(&mut self, playlist: String, songs: Vec<String>) -> Result<(), String> {
+	pub fn sub_audio<P: AsRef<str>>(&mut self, playlist: P, songs: &Vec<String>) -> Result<()> {
+		let playlist = playlist.as_ref();
 		let list = self.search_playlist_mut(&playlist)?;
 
 		list.sub_songs(songs);
 
 		Ok(())
-		//for i in 0..list.songs.len() {
-		//	if list.songs[i].path() == song {
-		//		list.songs.remove(i);
-		//		println!("removed {}", song.display());
-		//		return Ok(());
-		//	}	
-		//}
-		//let song = song.display();
-		//Err(format!("'{song}' not found in '{playlist}'"))
 	}
-	pub fn set_playlist_name(&mut self, name: String, new_name: String) -> Result<(), String> {
+	pub fn set_playlist_name(&mut self, name: String, new_name: String) -> Result<()> {
 		Ok(self.search_playlist_mut(name)?
 			.set_name(new_name))
-		//for list in self.all.iter_mut() {
-		//	if list.name() == &name {
-		//		list.set_name(new_name);
-		//		return Ok(());
-		//	}
-		//}
-		//Err(format!("playlist \"{name}\" not found"))
 	}
-	fn search_playlist<S: AsRef<str>>(&self, playlist: S) -> Result<&Playlist, String> {
+	fn search_playlist<S: AsRef<str>>(&self, playlist: S) -> Result<&Playlist> {
 
 		let playlist = playlist.as_ref();
 		for list in &*self.all {
@@ -189,7 +176,7 @@ impl<'a> AppState<'a> {
 		Err(format!("Playlist '{playlist}' not found"))
 	}
 
-	fn search_playlist_mut<S: AsRef<str>>(&mut self, playlist: S) -> Result<&mut Playlist, String> {
+	fn search_playlist_mut<S: AsRef<str>>(&mut self, playlist: S) -> Result<&mut Playlist> {
 		let all = &mut self.all;
 
 		let playlist = playlist.as_ref();
@@ -209,7 +196,7 @@ impl<'a> AppState<'a> {
 	}
 }
 
-pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
+pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 	
 	type C = Commands;
 
@@ -230,12 +217,6 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 			if let Some(p) = value {
 				if playlist {
 					let list = app.search_playlist(p)?;
-
-					// ds | s
-					// 1    1  no 
-					// 0    1  shuffle
-					// 1    0  shuffle
-					// 0    0  no
 
 					if shuffle != app.config.player.default_shuffle {
 						let mut new_list = list.clone();
@@ -271,7 +252,7 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 		C::PlayPause => {
 			app.player.playpause();
 		} 
-		C::Download { playlist, format, url, name} => {
+		C::Download { playlist, format, url, name } => {
 			if let Err(e) = download_audio(
 				app,
 				playlist, 
@@ -279,10 +260,7 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 				name,
 				url.clone() 
 			) {
-				println!("Failed to download {} due to {}", 
-					url, 
-					e
-				); 
+				println!("Failed to download {} due to {}", url, e); 
 			}
 		}
 		C::Playlist { option } => {
@@ -319,7 +297,7 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool, String> {
 	Ok(false)
 }
 
-pub fn readline() -> Result<String, String> {
+pub fn readline() -> Result<String> {
 	let mut input = String::new();
 
 	print!("> ");
@@ -330,7 +308,7 @@ pub fn readline() -> Result<String, String> {
 	Ok(input)
 }
 
-fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: Option<String>, url: String) -> Result<(), String> {
+fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: Option<String>, url: String) -> Result<()> {
 	
 
 	let download_path: String = app.config.downloader.download_path.clone() + "/";
@@ -363,7 +341,7 @@ fn download_audio(app: &AppState, playlist: bool, format: Option<String>, name: 
 	Ok(())
 }
 
-fn get_children<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>, String> {
+fn get_children<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
 	let path = path.as_ref();
 	
 	let dir_entries = std::fs::read_dir(path).map_err(|e| e.to_string())?;
@@ -391,7 +369,7 @@ fn format_from_secs(secs: u64) -> String {
 }
 
 #[allow(dead_code, unused_variables)]
-fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_path: PathBuf) -> Result<(), String> {
+fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_path: PathBuf) -> Result<()> {
 	type PO = PlaylistOptions;
 
 	match option {
@@ -399,21 +377,25 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 			app.add_audio(playlist, songs)?;
 		}	
 		PO::Sub { playlist, songs } => {
-			app.sub_audio(playlist, songs)?;
+			app.sub_audio(&playlist, &songs)?;
+			println!("removed {:#?} from {}", songs, playlist);
 		}
 		PO::Rename { playlist, new_name } => {
-			app.set_playlist_name(playlist, new_name)?;
+			app.set_playlist_name(playlist.clone(), new_name.clone())?;
+			println!("{} => {}", playlist, new_name);
 		}
 		PO::Create { name } => {
 			if app.playlist_exists(&name) {
 				return Err(format!("'{name}' already exists"));
 			}
 			let mut playlist = Playlist::default();
-			playlist.set_name(name);
+			playlist.set_name(name.clone());
 			app.all.push(playlist);
+			println!("Created '{}'", name);
 		}
 		PO::Save => {
 			crate::data::save(&playlist_path, &app.all)?;
+			println!("Successfully saved playlists");
 		}
 		PO::List { verbose, playlist } => {
 			let list = app.search_playlist(playlist)?;
@@ -436,7 +418,7 @@ fn parse_playlist_command(app: &mut AppState, option: PlaylistOptions, playlist_
 	Ok(())
 }
 
-fn search_audio<P: AsRef<Path>>(path: P) -> Result<Audio, String> {
+fn search_audio<P: AsRef<Path>>(path: P) -> Result<Audio> {
 	let path = path.as_ref();	
 	if !path.exists() {
 		return Err(String::from("path does not exist"));
@@ -449,25 +431,27 @@ fn search_audio<P: AsRef<Path>>(path: P) -> Result<Audio, String> {
 
 }
 
-fn parse_config_command(app: &mut AppState, option: ConfigOptions, dir: PathBuf) -> Result<(), String> {
+fn parse_config_command(app: &mut AppState, option: ConfigOptions, dir: PathBuf) -> Result<()> {
 
 	type CO = ConfigOptions;
 	
 	match option {
 		CO::Get => {
 			println!("{}", app.config);
-			Ok(())
 		}
 		CO::Save => {
-			crate::cfg::save(dir, app.config) 
+			crate::cfg::save(dir, app.config)?;
+			println!("Successfully saved config");
 		}
 		CO::Set { key, value } => {
-			config_set(app, key, value)
+			config_set(app, key.clone(), value.clone())?;
+			println!("Set {:#?} to {}", key, value);
 		}
 	}
+	Ok(())
 }
 
-fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <(), String> {
+fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <()> {
 	use crate::cfg::Color;
 	use std::str::FromStr;
 
