@@ -17,6 +17,7 @@ pub struct Player {
 }
 
 impl Player {
+	//NOTE: attempted fix with modified buffer sizes and sample rates
 	//TODO: fix buffer over/underruns, change buffer sizes for CPAL
 	pub fn new() -> Self {
 		

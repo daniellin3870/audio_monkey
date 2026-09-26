@@ -64,9 +64,8 @@ impl Display for Config {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {
-	//TODO: add default_loop and default_shuffle fields
 	pub music_directory: String,
-	pub volume: f64,
+	pub default_volume: f64,
 	pub playback_speed: f64,
 	pub default_loop: bool,
    	pub default_shuffle: bool	
@@ -77,12 +76,12 @@ impl Display for PlayerConfig {
 		write!(f,
 "Player
 	music_directory: {}
-	volume: {}
+	default_volume: {}
 	playback_speed: {}
 	default_loop: {}
 	default_shuffle: {}",
 				&self.music_directory,
-				&self.volume,
+				&self.default_volume,
 				&self.playback_speed,
 				&self.default_loop,
 				&self.default_shuffle,

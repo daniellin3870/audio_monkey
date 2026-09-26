@@ -59,6 +59,9 @@ enum Commands {
 		path: String,
 	},
 	Skip,
+	Volume {
+		value: f32,
+	},
 	Exit
 }
 
@@ -78,7 +81,7 @@ enum ConfigOptions {
 enum ConfigKey {
 	MusicDirectory,
 	//TODO: make volume, loop, playbackspeed do something
-	Volume,
+	DefaultVolume,
 	PlaybackSpeed,
 	DefaultLoop,
 	DefaultShuffle,
@@ -286,6 +289,12 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 
 		}
 		C::Skip => app.player.skip(),
+		C::Volume { value } => {
+			if 0.0 > value || value > 1.0 {
+				return Err("Value must be between 0.0 and 1.0".to_string());
+			}
+			app.player.set_volume(value);
+		}
 		C::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -463,7 +472,7 @@ fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <()> 
 
 	match key {
 		CK::MusicDirectory => player.music_directory = value,
-		CK::Volume         => player.volume = value.parse::<f64>().map_err(|e| e.to_string())?,
+		CK::DefaultVolume         => player.default_volume = value.parse::<f64>().map_err(|e| e.to_string())?,
 		CK::PlaybackSpeed  => player.playback_speed = value.parse::<f64>().map_err(|e| e.to_string())?,
 		CK::DefaultLoop    => player.default_loop = value.parse::<bool>().map_err(|e| e.to_string())?,
 		CK::DefaultShuffle => player.default_shuffle = value.parse::<bool>().map_err(|e| e.to_string())?,
