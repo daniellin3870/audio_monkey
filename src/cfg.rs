@@ -65,8 +65,8 @@ impl Display for Config {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PlayerConfig {
 	pub music_directory: String,
-	pub default_volume: f64,
-	pub playback_speed: f64,
+	pub default_volume: f32,
+	pub default_playback: f32,
 	pub default_loop: bool,
    	pub default_shuffle: bool	
 }
@@ -77,12 +77,12 @@ impl Display for PlayerConfig {
 "Player
 	music_directory: {}
 	default_volume: {}
-	playback_speed: {}
+	default_playback: {}
 	default_loop: {}
 	default_shuffle: {}",
 				&self.music_directory,
 				&self.default_volume,
-				&self.playback_speed,
+				&self.default_playback,
 				&self.default_loop,
 				&self.default_shuffle,
 			  )

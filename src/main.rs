@@ -25,6 +25,9 @@ fn main() -> Result<(), String> {
 	
 	let mut player: Player = Player::new();
 
+	player.set_volume(config.player.default_volume);
+	player.set_speed(config.player.default_playback);
+
 	let mut all = data::load(playlist_path)?;
 
 	let mut app = cli::AppState {

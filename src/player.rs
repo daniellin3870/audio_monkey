@@ -14,6 +14,7 @@ use json::{object, JsonValue};
 pub struct Player {
 	stream_handle: MixerDeviceSink,
 	player: rodio::Player,
+	pub looping: bool,
 }
 
 impl Player {
@@ -34,6 +35,7 @@ impl Player {
 		Player {
 			stream_handle,
 			player,
+			looping: false,
 		}
 	}
 
@@ -44,7 +46,7 @@ impl Player {
 		Ok(())
 	}
 
-	pub fn play_audio(&mut self, audio: Audio) -> Result<(), String> {
+	pub fn play_audio(&mut self, audio: &Audio) -> Result<(), String> {
 		let audio_file = File::open(audio.path())
 			.map_err(|e| e.to_string())?;
 		let player = rodio::play(
@@ -90,6 +92,10 @@ impl Player {
 
 	pub fn skip(&self) {
 		self.player.skip_one();
+	}
+
+	pub fn sleep_until_end(&self) {
+		self.player.sleep_until_end();
 	}
 	
 	pub fn playlist(&mut self, playlist: &Playlist)  {

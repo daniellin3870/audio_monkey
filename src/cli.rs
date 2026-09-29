@@ -62,6 +62,13 @@ enum Commands {
 	Volume {
 		value: f32,
 	},
+	Loop {
+		#[arg(
+			action = clap::ArgAction::Set,
+			value_parser = clap::builder::BoolishValueParser::new()
+		)]
+		enabled: bool,
+	},
 	Exit
 }
 
@@ -80,9 +87,9 @@ enum ConfigOptions {
 #[derive(ValueEnum, Clone, Debug)]
 enum ConfigKey {
 	MusicDirectory,
-	//TODO: make volume, loop, playbackspeed do something
+	//TODO: make loop, playbackspeed do something
 	DefaultVolume,
-	PlaybackSpeed,
+	DefaultPlayback,
 	DefaultLoop,
 	DefaultShuffle,
 	DownloadPath,
@@ -217,17 +224,26 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 	let cli = Cli::try_parse_from(args).map_err(|e| e.to_string())?;
 	match cli.commands {
 		C::Play{ playlist, shuffle, value } => { 
+			//TODO: make loop work
 			if let Some(p) = value {
 				if playlist {
 					let list = app.search_playlist(p)?;
+					let mut new_list = list.clone();
 
 					if shuffle != app.config.player.default_shuffle {
-						let mut new_list = list.clone();
 						new_list.songs.shuffle(&mut rand::rng());
-						app.player.playlist(&new_list);
 					}
-					else {
-						app.player.playlist(&list.clone());
+					
+					app.player.playlist(&new_list);
+					if app.player.looping { 
+						std::thread::scope(|s| {
+							s.spawn(|| {
+								app.player.sleep_until_end();
+								if app.player.looping {
+									app.player.playlist(&new_list);
+								}
+							});
+						});
 					}
 
 				}
@@ -242,7 +258,18 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 					else {
 						audio = search_audio(p)?;
 					}
-					app.player.play_audio(audio)?;
+					app.player.play_audio(&audio)?;
+					if app.player.looping { 
+						std::thread::scope(|s| {
+							s.spawn(|| -> Result<()> {
+								app.player.sleep_until_end();
+								if app.player.looping {
+									app.player.play_audio(&audio)?;
+								}
+								Ok(())
+							});
+						});
+					}
 				}
 			}
 			else {
@@ -295,6 +322,7 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 			}
 			app.player.set_volume(value);
 		}
+		C::Loop { enabled } => app.player.looping = enabled,
 		C::Exit => {
 			std::io::stdout().flush().map_err(|e| e.to_string())?;
 			return Ok(true);
@@ -471,15 +499,15 @@ fn config_set(app: &mut AppState, key: ConfigKey, value: String) -> Result <()> 
 	let color = &mut app.config.color; 
 
 	match key {
-		CK::MusicDirectory => player.music_directory = value,
-		CK::DefaultVolume         => player.default_volume = value.parse::<f64>().map_err(|e| e.to_string())?,
-		CK::PlaybackSpeed  => player.playback_speed = value.parse::<f64>().map_err(|e| e.to_string())?,
-		CK::DefaultLoop    => player.default_loop = value.parse::<bool>().map_err(|e| e.to_string())?,
-		CK::DefaultShuffle => player.default_shuffle = value.parse::<bool>().map_err(|e| e.to_string())?,
-		CK::DownloadPath   => downloader.download_path = value,
-		CK::Options        => downloader.options = value,
-		CK::Format         => downloader.format = value,
-		CK::Background     => color.background = Color::from_str(&value)?
+		CK::MusicDirectory  => player.music_directory = value,
+		CK::DefaultVolume   => player.default_volume = value.parse::<f32>().map_err(|e| e.to_string())?,
+		CK::DefaultPlayback => player.default_playback = value.parse::<f32>().map_err(|e| e.to_string())?,
+		CK::DefaultLoop     => player.default_loop = value.parse::<bool>().map_err(|e| e.to_string())?,
+		CK::DefaultShuffle  => player.default_shuffle = value.parse::<bool>().map_err(|e| e.to_string())?,
+		CK::DownloadPath    => downloader.download_path = value,
+		CK::Options         => downloader.options = value,
+		CK::Format          => downloader.format = value,
+		CK::Background      => color.background = Color::from_str(&value)?
 	}	
 	Ok(())
 }
