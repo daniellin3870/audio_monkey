@@ -235,16 +235,6 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 					}
 					
 					app.player.playlist(&new_list);
-					if app.player.looping { 
-						std::thread::scope(|s| {
-							s.spawn(|| {
-								app.player.sleep_until_end();
-								if app.player.looping {
-									app.player.playlist(&new_list);
-								}
-							});
-						});
-					}
 
 				}
 				else {
@@ -259,17 +249,6 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 						audio = search_audio(p)?;
 					}
 					app.player.play_audio(&audio)?;
-					if app.player.looping { 
-						std::thread::scope(|s| {
-							s.spawn(|| -> Result<()> {
-								app.player.sleep_until_end();
-								if app.player.looping {
-									app.player.play_audio(&audio)?;
-								}
-								Ok(())
-							});
-						});
-					}
 				}
 			}
 			else {
@@ -337,7 +316,6 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 pub fn readline() -> Result<String> {
 	let mut input = String::new();
 
-	print!("> ");
 	std::io::stdout().flush().map_err(|e| e.to_string())?;
 	std::io::stdin()
 		.read_line(&mut input)
