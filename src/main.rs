@@ -6,12 +6,13 @@ pub mod data;
 use player::Player;
 
 use std::sync::mpsc::{self, Sender, Receiver};
-use std::thread;
+use std::sync::Arc;
+use std::{time::Duration, thread};
 use std::io::{self, Write};
 
 enum Event {
 	Input(String),
-	SongEnd,
+	QueueEnd,
 }
 
 fn main() -> Result<(), String> {
@@ -41,13 +42,16 @@ fn main() -> Result<(), String> {
 	let mut app = cli::AppState {
 		player: &mut player,
 		config: &mut config,
-		all: &mut all
+		all: &mut all,
+		current_playlist: None,
 	};	
 
 	//TODO: rewrite to event-driven REPL
 	// needs a worker thread and background thread
 	// needs central channel which collects events
 	// from the two threads
+
+	//TODO: detect when a song ends
 
 	let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
 
@@ -58,18 +62,40 @@ fn main() -> Result<(), String> {
 			let line = cli::readline();
 			if let Ok(line) = line {
 				let line = line.trim();
-				if line.is_empty() { continue; }
-
+				if line.is_empty() { pp(); continue; }
 				let _ = input_tx.send(Event::Input(line.to_string()));
 			}
 
 		}	
 	});
 
+	let song_tx = tx.clone();
+
+	let monitor_player = Arc::clone(&app.player.player);
+
+	thread::spawn(move || {
+		let mut playing = false;
+		loop {
+			thread::sleep(Duration::from_millis(100));
+			if monitor_player.empty() { 
+				if playing {
+					playing = false;
+					let _ = song_tx.send(Event::QueueEnd);
+				}
+			}
+			else {
+				playing = true;
+			}	
+		}
+	});
+
 	pp();
+
 	while let Ok(event) = rx.recv() {
+		type E = Event;
+		dbg!("goon");
 		match event {
-			Event::Input(line) => {
+			E::Input(line) => {
 				let parsed = cli::parse(&line, &mut app);
 				if let Ok(quit) = parsed {
 					if quit { break; }
@@ -77,8 +103,14 @@ fn main() -> Result<(), String> {
 				else if let Err(e) = parsed {
 					println!("{e}");
 				}
+			},
+			E::QueueEnd => {
+				if let Some(list) = &app.current_playlist
+				{
+					if !app.player.looping { return Ok(()); }
+					app.player.playlist(&list);
+				} else {}
 			}
-			Event::SongEnd => todo!() // app.player.playlist() ?
 		}
 		pp();
 	}

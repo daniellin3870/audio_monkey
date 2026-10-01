@@ -2,6 +2,7 @@ use std::io::BufReader;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::num::NonZero;
+use std::sync::Arc;
 
 use rodio::{Decoder, MixerDeviceSink}; 
 use rodio::stream::DeviceSinkBuilder;
@@ -13,7 +14,7 @@ use json::{object, JsonValue};
 
 pub struct Player {
 	stream_handle: MixerDeviceSink,
-	player: rodio::Player,
+	pub player: Arc<rodio::Player>,
 	pub looping: bool,
 }
 
@@ -34,7 +35,7 @@ impl Player {
 		let player = rodio::Player::connect_new(stream_handle.mixer());
 		Player {
 			stream_handle,
-			player,
+			player: player.into(),
 			looping: false,
 		}
 	}
@@ -42,6 +43,7 @@ impl Player {
 	pub fn queue_audio(&self, audio: &Audio) -> Result<(), String> {
 		let audio_file = File::open(audio.path()).map_err(|e| e.to_string())?;
 		let audio = Decoder::try_from(audio_file).map_err(|e| e.to_string())?;
+		
 		self.player.append(audio);
 		Ok(())
 	}
@@ -53,7 +55,7 @@ impl Player {
 			self.stream_handle.mixer(), 
 			BufReader::new(audio_file))
 			.map_err(|e| e.to_string())?; 
-		self.player = player;
+		self.player = player.into();
 		Ok(())
 	}
 
@@ -96,6 +98,14 @@ impl Player {
 
 	pub fn sleep_until_end(&self) {
 		self.player.sleep_until_end();
+	}
+
+	pub fn len(&self) -> usize {
+		self.player.len()
+	}
+
+	pub fn empty(&self) -> bool {
+		self.player.empty()
 	}
 	
 	pub fn playlist(&mut self, playlist: &Playlist)  {

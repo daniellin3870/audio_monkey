@@ -132,6 +132,7 @@ pub struct AppState<'a> {
 	pub player: &'a mut Player,
 	pub config: &'a mut Config,
 	pub all:    &'a mut Vec<Playlist>,
+	pub current_playlist: Option<Playlist>,
 }
 
 impl<'a> AppState<'a> {
@@ -233,8 +234,8 @@ pub fn parse(cmd: &str, app: &mut AppState) -> Result<bool> {
 					if shuffle != app.config.player.default_shuffle {
 						new_list.songs.shuffle(&mut rand::rng());
 					}
-					
 					app.player.playlist(&new_list);
+					app.current_playlist = Some(new_list);
 
 				}
 				else {
