@@ -3,6 +3,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::num::NonZero;
 use std::sync::Arc;
+use std::time::Duration;
 
 use rodio::{Decoder, MixerDeviceSink}; 
 use rodio::stream::DeviceSinkBuilder;
@@ -20,6 +21,7 @@ pub struct Player {
 
 impl Player {
 	//NOTE: attempted fix with modified buffer sizes and sample rates
+	//NOTE: under runs are caused by system load.
 	//TODO: fix buffer over/underruns, change buffer sizes for CPAL
 	pub fn new() -> Self {
 		
@@ -116,6 +118,10 @@ impl Player {
 				continue;
 			}
 		}	
+	}
+
+	pub fn get_pos(&self) -> Duration {
+		self.player.get_pos()
 	}
 
 }

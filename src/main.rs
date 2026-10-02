@@ -13,6 +13,7 @@ use std::io::{self, Write};
 enum Event {
 	Input(String),
 	QueueEnd,
+	AudioPos(Duration),
 }
 
 fn main() -> Result<(), String> {
@@ -36,6 +37,7 @@ fn main() -> Result<(), String> {
 
 	player.set_volume(config.player.default_volume);
 	player.set_speed(config.player.default_playback);
+	player.looping = config.player.default_loop;
 
 	let mut all = data::load(playlist_path)?;
 
@@ -77,6 +79,9 @@ fn main() -> Result<(), String> {
 			}
 			else {
 				playing = true;
+				// TODO: replace this later with update screen or sm
+				let pos = monitor_player.get_pos();
+				let _ = song_tx.send(Event::AudioPos(pos));
 			}	
 		}
 	});
@@ -85,7 +90,6 @@ fn main() -> Result<(), String> {
 
 	while let Ok(event) = rx.recv() {
 		type E = Event;
-		dbg!("goon");
 		match event {
 			E::Input(line) => {
 				let parsed = cli::parse(&line, &mut app);
@@ -107,20 +111,12 @@ fn main() -> Result<(), String> {
 					app.player.playlist(&list);
 				} 
 			}
+			E::AudioPos(_pos) => {
+
+			}
 		}
 		pp();
 	}
-
-	//match cli::parse(line, &mut app) {
-	//	Ok(quit) => {
-	//		if quit { break; }
-	//		
-	//	}
-	//	Err(e) => {
-	//		println!("{e}")
-	//	}
-	//}
-
 
 	player.drop();
 	Ok(())

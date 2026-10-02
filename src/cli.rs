@@ -373,7 +373,7 @@ fn get_children<P: AsRef<Path>>(path: P) -> Result<Vec<PathBuf>> {
 	Ok(file_paths)
 }
 
-fn format_from_secs(secs: u64) -> String {
+pub fn format_from_secs(secs: u64) -> String {
 	let s: u64 = secs % 60;
 	let m: u64 = secs / 60; 
 	let h: u64 = m / 60;
