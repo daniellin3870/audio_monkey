@@ -46,17 +46,10 @@ fn main() -> Result<(), String> {
 		current_playlist: None,
 	};	
 
-	//TODO: rewrite to event-driven REPL
-	// needs a worker thread and background thread
-	// needs central channel which collects events
-	// from the two threads
-
-	//TODO: detect when a song ends
-
 	let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
 
-	let input_tx = tx.clone();
 	// input loop thread
+	let input_tx = tx.clone();
 	thread::spawn(move || {
 		loop {
 			let line = cli::readline();
@@ -69,10 +62,9 @@ fn main() -> Result<(), String> {
 		}	
 	});
 
+	// song state thread
 	let song_tx = tx.clone();
-
 	let monitor_player = Arc::clone(&app.player.player);
-
 	thread::spawn(move || {
 		let mut playing = false;
 		loop {
@@ -107,9 +99,13 @@ fn main() -> Result<(), String> {
 			E::QueueEnd => {
 				if let Some(list) = &app.current_playlist
 				{
-					if !app.player.looping { return Ok(()); }
+					if !app.player.looping { 
+						app.current_playlist = None;
+						continue; 
+					}
+
 					app.player.playlist(&list);
-				} else {}
+				} 
 			}
 		}
 		pp();
@@ -132,5 +128,5 @@ fn main() -> Result<(), String> {
 
 fn pp() {
 	print!("> ");
-	io::stdout().flush();
+	let _ = io::stdout().flush();
 }
